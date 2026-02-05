@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Settings, Moon, Sun, Wifi, WifiOff, Loader2, MessageSquare, GitCompare, Users } from 'lucide-react';
+import { Send, Settings, Moon, Sun, Wifi, WifiOff, Loader2, MessageSquare, GitCompare, Users, Github, Coffee } from 'lucide-react';
 import { api, type Message, type ChatStreamChunk } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import ModelSelector from './ModelSelector';
@@ -267,6 +267,29 @@ export default function ChatInterface() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Ko-fi Donation Button */}
+            <a
+              href="https://ko-fi.com/datdiego"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Support on Ko-fi"
+            >
+              <Coffee className="w-5 h-5 text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400" />
+            </a>
+
+            {/* GitHub Repository Link */}
+            <a
+              href="https://github.com/datdiego/trialogue"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm"
+              title="Star on GitHub"
+            >
+              <Github className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+              <span className="text-gray-700 dark:text-gray-300 hidden sm:inline">Star</span>
+            </a>
+
             <button
               onClick={toggleDarkMode}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"

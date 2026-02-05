@@ -44,8 +44,35 @@ uvicorn app.main:app --reload
 ```
 ├── frontend/          # Next.js application
 ├── backend/           # FastAPI server
+├── docs/              # Documentation
+│   ├── roadmap.md     # Development roadmap
+│   └── DEPLOYMENT.md  # Deployment guide
 └── README.md
 ```
+
+## Deployment
+
+Ready to deploy your own instance? See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed instructions on deploying to Vercel (frontend) and Railway (backend).
+
+Quick links:
+- Frontend: [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/datdiego/trialogue&project-name=trialogue&root-directory=frontend)
+- Backend: Deploy on [Railway](https://railway.app)
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## Support
+
+If you find this project helpful, consider:
+- Starring the repository on [GitHub](https://github.com/datdiego/trialogue)
+- Supporting development via [Ko-fi](https://ko-fi.com/datdiego)
 
 ## License
 
