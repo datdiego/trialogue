@@ -15,3 +15,6 @@ python-multipart==0.0.12
 
 # Environment variables
 python-dotenv==1.0.1
+
+# Rate limiting
+slowapi==0.1.9
