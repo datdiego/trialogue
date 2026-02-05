@@ -24,8 +24,9 @@ class ChatRequest(BaseModel):
 class ChatStreamChunk(BaseModel):
     """Streaming response chunk"""
     model: str
-    delta: str
+    content: str  # Changed from 'delta' to match frontend expectations
     done: bool = False
+    error: Optional[str] = None  # Optional error message
 
 
 class ValidateKeyRequest(BaseModel):

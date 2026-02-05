@@ -477,9 +477,225 @@ python -c "from app.main import app"
 
 ---
 
+---
+
+## Milestone 5: Trialogue Logic ✅
+**Status:** COMPLETED
+
+### Completed Items
+
+#### 1. Enhanced Message Structure
+**File:** `/frontend/components/ChatInterface.tsx`
+
+- ✅ Implemented `TrialogueMessage` interface with threading support
+- ✅ Added message IDs and timestamps for tracking
+- ✅ Parent-child relationship tracking via `parentId`
+- ✅ Model-specific message attribution
+
+**Key Features:**
+```typescript
+interface TrialogueMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  model?: string;
+  timestamp: number;
+  parentId?: string;
+}
+```
+
+#### 2. Parallel Model Queries with Improved State Management
+**Files:** `/frontend/components/ChatInterface.tsx`, `/backend/app/routers/chat.py`
+
+- ✅ Parallel async streaming from multiple models
+- ✅ Backend queue-based multiplexing for true parallelism
+- ✅ Independent error handling per model
+- ✅ Real-time response tracking with `currentResponses` state
+- ✅ Timeout handling for stalled streams
+
+**Backend Implementation:**
+- Uses `asyncio.Queue` for multiplexing streams
+- Parallel task execution with `asyncio.create_task()`
+- Graceful timeout handling (60s per stream)
+- Per-model error isolation
+
+#### 3. Context-Aware Follow-Ups
+**File:** `/frontend/components/ChatInterface.tsx`
+
+- ✅ "Follow-up" button on each model column
+- ✅ Target-specific model queries
+- ✅ Context filtering: only includes user messages + target model history
+- ✅ Visual indicator showing active follow-up target
+- ✅ Cancel follow-up mode functionality
+
+**Implementation:**
+```typescript
+const buildApiMessages = (messages, targetModel) => {
+  if (!targetModel) return allMessages;
+  // Filter to only user + target model messages
+  return messages.filter(msg =>
+    msg.role === 'user' || msg.model === targetModel
+  );
+};
+```
+
+#### 4. Response Comparison View
+**File:** `/frontend/components/ChatInterface.tsx`
+
+- ✅ Side-by-side comparison of last responses
+- ✅ Displays question context at top
+- ✅ Model name and timestamp for each response
+- ✅ Quick "Ask Follow-up" button per response
+- ✅ Responsive grid layout (1-3 columns)
+
+**Features:**
+- Shows most recent user question
+- Compares all model responses to that question
+- Allows drilling into specific model responses
+- Clean, organized comparison UI
+
+#### 5. Debate/Consensus UI
+**Files:** `/frontend/components/DebateView.tsx` (new), `/frontend/components/ChatInterface.tsx`
+
+- ✅ Threaded conversation view
+- ✅ Color-coded model responses
+- ✅ Avatar icons for users and models
+- ✅ Timestamp tracking per message
+- ✅ "Get other opinions" button to facilitate model-to-model debates
+- ✅ Thread-based organization
+
+**Key Features:**
+- Groups messages by conversation thread
+- Visual distinction between models (colors)
+- Quick action buttons to continue debate
+- Clean timeline view of discussions
+
+#### 6. View Mode Selector
+**File:** `/frontend/components/ChatInterface.tsx`
+
+- ✅ Three view modes: Parallel, Compare, Debate
+- ✅ Persistent view mode selection
+- ✅ Icons for each mode (MessageSquare, GitCompare, Users)
+- ✅ Smooth transitions between views
+
+#### 7. Backend Schema Updates
+**Files:** `/backend/app/models/schemas.py`, `/backend/app/services/llm.py`
+
+- ✅ Updated `ChatStreamChunk` to use `content` instead of `delta`
+- ✅ Added `error` field to streaming chunks
+- ✅ Aligned backend schema with frontend expectations
+- ✅ Improved error reporting in streams
+
+### Implementation Details
+
+#### Parallel Streaming Architecture
+
+**Backend Flow:**
+1. Client sends request with multiple models
+2. Backend creates async task for each model
+3. Each task streams to a shared queue
+4. Main generator multiplexes queue to SSE stream
+5. Client receives interleaved chunks
+6. Frontend organizes chunks by model
+
+**Frontend Flow:**
+1. User sends message to all selected models
+2. SSE stream processes chunks as they arrive
+3. `currentResponses` state updates in real-time
+4. When done, converts to `TrialogueMessage` objects
+5. Adds messages with proper threading info
+
+#### Follow-Up System
+
+**How it Works:**
+1. User clicks "Follow-up" on a specific model
+2. `followUpTarget` state is set to that model
+3. Input placeholder updates to show target
+4. Blue banner displays active follow-up mode
+5. On send, `buildApiMessages` filters conversation history
+6. Only user messages + target model messages sent to API
+7. Maintains context-aware conversation per model
+
+#### View Modes
+
+**Parallel View:**
+- Traditional column-based layout
+- Real-time streaming per model
+- Follow-up buttons per column
+- Independent scrolling
+
+**Comparison View:**
+- Shows last user question
+- Side-by-side response comparison
+- Timestamps and model names
+- Quick follow-up actions
+
+**Debate View:**
+- Timeline-based thread display
+- Color-coded by model
+- Avatar indicators
+- "Get other opinions" facilitates debates
+
+### File Changes
+
+| File | Status | Changes |
+|------|--------|---------|
+| `/docs/roadmap.md` | ✅ Updated | Added Milestone 5 definition, renumbered later milestones |
+| `/frontend/components/ChatInterface.tsx` | ✅ Enhanced | Trialogue messages, view modes, follow-ups, comparison view |
+| `/frontend/components/DebateView.tsx` | ✅ Created | New component for threaded debate view |
+| `/backend/app/routers/chat.py` | ✅ Enhanced | Parallel streaming with asyncio queue multiplexing |
+| `/backend/app/services/llm.py` | ✅ Updated | Changed `delta` to `content`, added `error` field |
+| `/backend/app/models/schemas.py` | ✅ Updated | Updated `ChatStreamChunk` schema |
+| `/worker/PROGRESS.md` | ✅ Updated | Milestone 5 documentation |
+
+### Testing Results
+
+#### Frontend Build
+```bash
+npm run build
+# ✓ Compiled successfully in 8.1s
+# ✓ TypeScript checks passed
+# ✓ All components built successfully
+```
+
+#### Backend Verification
+```bash
+python -c "from app.main import app"
+# ✓ All imports successful
+# ✓ No schema errors
+# ✓ asyncio integration working
+```
+
+### Key Improvements Over Previous Milestones
+
+1. **True Parallel Streaming**: Backend now uses asyncio tasks instead of sequential streaming
+2. **Conversation Threading**: Messages properly linked with parent-child relationships
+3. **Multiple View Modes**: Users can choose how to visualize conversations
+4. **Context-Aware Follow-Ups**: Smart filtering of conversation history per model
+5. **Debate Facilitation**: Easy model-to-model conversation orchestration
+
+### User Experience Enhancements
+
+1. **Visual Clarity**
+   - Color-coded models in debate view
+   - Clear view mode indicators
+   - Follow-up mode banner
+
+2. **Workflow Flexibility**
+   - Choose between parallel, comparison, or debate views
+   - Target specific models for follow-ups
+   - Quick actions for continuing conversations
+
+3. **Performance**
+   - True parallel streaming reduces total latency
+   - Efficient message filtering
+   - Responsive UI updates
+
+---
+
 ## Next Steps
 
-### Milestone 5: Advanced Features
+### Milestone 6: Advanced Features
 - [ ] Model recommendations (free-tier detection)
 - [ ] Cost estimation per provider
 - [ ] Save/load conversations

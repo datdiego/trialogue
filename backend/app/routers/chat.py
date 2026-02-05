@@ -7,6 +7,7 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from typing import Optional
 import json
+import asyncio
 
 from app.models.schemas import (
     ChatRequest,
@@ -44,24 +45,70 @@ async def chat(
         "groq": x_groq_key,
     }
 
-    # TODO: Implement parallel streaming from multiple models
-    # TODO: Multiplex streams into single SSE response
-    # TODO: Handle errors per-model gracefully
-
     async def generate():
-        """Generate SSE stream"""
-        for model in request.models:
-            async for chunk in LLMService.chat_stream(
-                model=model,
-                messages=request.messages,
-                api_keys=api_keys,
-                temperature=request.temperature or 0.7,
-                max_tokens=request.max_tokens or 1000,
-            ):
-                # Send as SSE format
+        """Generate SSE stream with parallel model queries"""
+        # Create a queue for multiplexing multiple streams
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def stream_model(model: str):
+            """Stream from a single model and put chunks in queue"""
+            try:
+                async for chunk in LLMService.chat_stream(
+                    model=model,
+                    messages=request.messages,
+                    api_keys=api_keys,
+                    temperature=request.temperature or 0.7,
+                    max_tokens=request.max_tokens or 1000,
+                ):
+                    await queue.put(chunk)
+            except Exception as e:
+                # Handle unexpected errors
+                error_chunk = ChatStreamChunk(
+                    model=model,
+                    content="",
+                    done=True,
+                    error=f"Unexpected error: {str(e)}",
+                )
+                await queue.put(error_chunk)
+
+        # Start all model streams in parallel
+        tasks = [asyncio.create_task(stream_model(model)) for model in request.models]
+
+        # Track completion
+        completed_models = set()
+        total_models = len(request.models)
+
+        # Process chunks as they arrive
+        while len(completed_models) < total_models:
+            try:
+                # Wait for next chunk with timeout
+                chunk = await asyncio.wait_for(queue.get(), timeout=60.0)
+
+                # Send chunk to client
                 yield f"data: {chunk.model_dump_json()}\n\n"
 
-        # Send done signal
+                # Track completed models
+                if chunk.done:
+                    completed_models.add(chunk.model)
+
+            except asyncio.TimeoutError:
+                # Timeout waiting for chunks - likely a stalled stream
+                for model in request.models:
+                    if model not in completed_models:
+                        error_chunk = ChatStreamChunk(
+                            model=model,
+                            content="",
+                            done=True,
+                            error="Stream timeout",
+                        )
+                        yield f"data: {error_chunk.model_dump_json()}\n\n"
+                        completed_models.add(model)
+                break
+
+        # Wait for all tasks to complete
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Send final done signal
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

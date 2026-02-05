@@ -97,8 +97,9 @@ class LLMService:
             if not api_key:
                 yield ChatStreamChunk(
                     model=model,
-                    delta=f"Error: No API key provided for model {model}",
+                    content="",
                     done=True,
+                    error=f"No API key provided for model {model}",
                 )
                 return
 
@@ -122,36 +123,40 @@ class LLMService:
                     if delta_content:
                         yield ChatStreamChunk(
                             model=model,
-                            delta=delta_content,
+                            content=delta_content,
                             done=False,
                         )
 
             # Send completion signal
-            yield ChatStreamChunk(model=model, delta="", done=True)
+            yield ChatStreamChunk(model=model, content="", done=True)
 
         except litellm.exceptions.AuthenticationError as e:
             yield ChatStreamChunk(
                 model=model,
-                delta=f"Error: Invalid API key for {model}",
+                content="",
                 done=True,
+                error=f"Invalid API key for {model}",
             )
         except litellm.exceptions.RateLimitError as e:
             yield ChatStreamChunk(
                 model=model,
-                delta=f"Error: Rate limit exceeded for {model}",
+                content="",
                 done=True,
+                error=f"Rate limit exceeded for {model}",
             )
         except litellm.exceptions.BadRequestError as e:
             yield ChatStreamChunk(
                 model=model,
-                delta=f"Error: Bad request for {model} - {str(e)}",
+                content="",
                 done=True,
+                error=f"Bad request for {model} - {str(e)}",
             )
         except Exception as e:
             yield ChatStreamChunk(
                 model=model,
-                delta=f"Error: {str(e)}",
+                content="",
                 done=True,
+                error=str(e),
             )
 
     @staticmethod

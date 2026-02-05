@@ -77,7 +77,34 @@ Multi-LLM "AI Think Tank" with BYOK (Bring Your Own Key) architecture for secure
 - [x] Connection state indicators
 - [x] Exponential backoff retry mechanism
 
-## Milestone 5: Advanced Features
+## Milestone 5: Trialogue Logic
+**Status:** IN PROGRESS
+
+### Parallel Model Queries
+- [x] Simultaneous streaming from multiple models
+- [x] Independent response tracking per model
+- [ ] Optimized concurrent request handling
+- [ ] Smart model context management
+
+### Debate/Consensus UI
+- [ ] Model-to-model conversation threading
+- [ ] Response to specific model's output
+- [ ] Debate view with conversation flow
+- [ ] Consensus detection and highlighting
+
+### Response Comparison
+- [ ] Side-by-side response comparison view
+- [ ] Highlight differences between responses
+- [ ] Response quality indicators
+- [ ] Export comparison reports
+
+### Targeted Follow-ups
+- [ ] Ask follow-up question to specific model
+- [ ] Context-aware follow-up handling
+- [ ] Model-specific conversation history
+- [ ] Thread visualization
+
+## Milestone 6: Advanced Features
 **Status:** NOT STARTED
 
 ### Model Recommendations
@@ -95,7 +122,7 @@ Multi-LLM "AI Think Tank" with BYOK (Bring Your Own Key) architecture for secure
 - [ ] Connection pooling
 - [ ] Response caching (optional)
 
-## Milestone 6: Testing & Documentation
+## Milestone 7: Testing & Documentation
 **Status:** NOT STARTED
 
 ### Testing
@@ -110,7 +137,7 @@ Multi-LLM "AI Think Tank" with BYOK (Bring Your Own Key) architecture for secure
 - [ ] Deployment guide
 - [ ] Contributing guidelines
 
-## Milestone 7: Production Readiness
+## Milestone 8: Production Readiness
 **Status:** NOT STARTED
 
 ### Security
