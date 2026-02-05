@@ -3,7 +3,7 @@ Chat Router
 Handles chat and key validation endpoints
 """
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from typing import Optional
 import json
@@ -19,10 +19,18 @@ from app.services.llm import LLMService
 
 router = APIRouter()
 
+# Get limiter from main app - will be set via dependency
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.post("/chat")
+@limiter.limit("10/minute")  # 10 requests per minute per IP
 async def chat(
-    request: ChatRequest,
+    chat_request: ChatRequest,
+    request: Request,
     x_openai_key: Optional[str] = Header(None, alias="X-OpenAI-Key"),
     x_anthropic_key: Optional[str] = Header(None, alias="X-Anthropic-Key"),
     x_google_key: Optional[str] = Header(None, alias="X-Google-Key"),
@@ -55,10 +63,10 @@ async def chat(
             try:
                 async for chunk in LLMService.chat_stream(
                     model=model,
-                    messages=request.messages,
+                    messages=chat_request.messages,
                     api_keys=api_keys,
-                    temperature=request.temperature or 0.7,
-                    max_tokens=request.max_tokens or 1000,
+                    temperature=chat_request.temperature or 0.7,
+                    max_tokens=chat_request.max_tokens or 1000,
                 ):
                     await queue.put(chunk)
             except Exception as e:
@@ -72,11 +80,11 @@ async def chat(
                 await queue.put(error_chunk)
 
         # Start all model streams in parallel
-        tasks = [asyncio.create_task(stream_model(model)) for model in request.models]
+        tasks = [asyncio.create_task(stream_model(model)) for model in chat_request.models]
 
         # Track completion
         completed_models = set()
-        total_models = len(request.models)
+        total_models = len(chat_request.models)
 
         # Process chunks as they arrive
         while len(completed_models) < total_models:
@@ -93,7 +101,7 @@ async def chat(
 
             except asyncio.TimeoutError:
                 # Timeout waiting for chunks - likely a stalled stream
-                for model in request.models:
+                for model in chat_request.models:
                     if model not in completed_models:
                         error_chunk = ChatStreamChunk(
                             model=model,
@@ -122,7 +130,8 @@ async def chat(
 
 
 @router.post("/validate-key", response_model=ValidateKeyResponse)
-async def validate_key(request: ValidateKeyRequest):
+@limiter.limit("5/minute")  # Stricter limit for validation - 5 requests per minute per IP
+async def validate_key(http_request: Request, request: ValidateKeyRequest):
     """
     Validate an API key and return available models
 
