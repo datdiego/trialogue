@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Settings, Moon, Sun } from 'lucide-react';
+import { Send, Settings, Moon, Sun, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { api, type Message, type ChatStreamChunk } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import ModelSelector from './ModelSelector';
@@ -14,12 +14,16 @@ interface ModelResponse {
   error?: string;
 }
 
+type ConnectionState = 'idle' | 'connecting' | 'streaming' | 'error';
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [currentResponses, setCurrentResponses] = useState<Record<string, string>>({});
+  const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -68,6 +72,8 @@ export default function ChatInterface() {
     setInput('');
     setIsStreaming(true);
     setCurrentResponses({});
+    setConnectionState('connecting');
+    setErrorMessage('');
 
     const apiKeysRaw = storage.getApiKeys();
     const apiKeys: Record<string, string> = Object.fromEntries(
@@ -76,6 +82,8 @@ export default function ChatInterface() {
     const responsesMap: Record<string, string> = {};
 
     try {
+      setConnectionState('streaming');
+
       for await (const chunk of api.streamChat(
         {
           messages: newMessages,
@@ -105,12 +113,18 @@ export default function ChatInterface() {
 
       setMessages([...newMessages, ...assistantMessages]);
       setCurrentResponses({});
+      setConnectionState('idle');
     } catch (error) {
       console.error('Chat error:', error);
+
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      setErrorMessage(errorMsg);
+      setConnectionState('error');
+
       // Add error messages
       const errorMessages: Message[] = selectedModels.map(() => ({
         role: 'assistant',
-        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        content: `Error: ${errorMsg}`,
       }));
       setMessages([...newMessages, ...errorMessages]);
     } finally {
@@ -138,9 +152,35 @@ export default function ChatInterface() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               Trialogue
             </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Chat with multiple AI models simultaneously
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Chat with multiple AI models simultaneously
+              </p>
+              {connectionState !== 'idle' && (
+                <div className="flex items-center gap-1 text-xs">
+                  {connectionState === 'connecting' && (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                      <span className="text-blue-500">Connecting...</span>
+                    </>
+                  )}
+                  {connectionState === 'streaming' && (
+                    <>
+                      <Wifi className="w-3 h-3 text-green-500" />
+                      <span className="text-green-500">Streaming</span>
+                    </>
+                  )}
+                  {connectionState === 'error' && (
+                    <>
+                      <WifiOff className="w-3 h-3 text-red-500" />
+                      <span className="text-red-500" title={errorMessage}>
+                        Connection Error
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
