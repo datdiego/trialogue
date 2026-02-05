@@ -7,10 +7,23 @@ from typing import AsyncGenerator, Dict, List, Optional
 import litellm
 from litellm import acompletion
 from app.models.schemas import Message, ChatStreamChunk
+import logging
 
 # Configure LiteLLM
 litellm.set_verbose = False  # Set to True for debugging
 litellm.drop_params = True  # Drop unsupported params instead of erroring
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
+# Safe error messages to prevent information disclosure
+SAFE_ERROR_MESSAGES = {
+    "auth": "Authentication failed. Please check your API key.",
+    "rate_limit": "Rate limit exceeded. Please try again later.",
+    "bad_request": "Invalid request parameters.",
+    "generic": "An error occurred processing your request.",
+    "no_key": "No API key provided for this model.",
+}
 
 # Provider to model prefix mapping
 PROVIDER_PREFIXES = {
@@ -95,11 +108,12 @@ class LLMService:
             # Get the appropriate API key
             api_key = LLMService._get_api_key_for_model(model, api_keys)
             if not api_key:
+                logger.warning(f"No API key provided for model {model}")
                 yield ChatStreamChunk(
                     model=model,
                     content="",
                     done=True,
-                    error=f"No API key provided for model {model}",
+                    error=SAFE_ERROR_MESSAGES["no_key"],
                 )
                 return
 
@@ -131,32 +145,36 @@ class LLMService:
             yield ChatStreamChunk(model=model, content="", done=True)
 
         except litellm.exceptions.AuthenticationError as e:
+            logger.warning(f"Authentication error for {model}: {str(e)}")
             yield ChatStreamChunk(
                 model=model,
                 content="",
                 done=True,
-                error=f"Invalid API key for {model}",
+                error=SAFE_ERROR_MESSAGES["auth"],
             )
         except litellm.exceptions.RateLimitError as e:
+            logger.warning(f"Rate limit error for {model}: {str(e)}")
             yield ChatStreamChunk(
                 model=model,
                 content="",
                 done=True,
-                error=f"Rate limit exceeded for {model}",
+                error=SAFE_ERROR_MESSAGES["rate_limit"],
             )
         except litellm.exceptions.BadRequestError as e:
+            logger.error(f"Bad request for {model}: {str(e)}")
             yield ChatStreamChunk(
                 model=model,
                 content="",
                 done=True,
-                error=f"Bad request for {model} - {str(e)}",
+                error=SAFE_ERROR_MESSAGES["bad_request"],
             )
         except Exception as e:
+            logger.error(f"Unexpected error for {model}: {str(e)}", exc_info=True)
             yield ChatStreamChunk(
                 model=model,
                 content="",
                 done=True,
-                error=str(e),
+                error=SAFE_ERROR_MESSAGES["generic"],
             )
 
     @staticmethod
@@ -191,10 +209,13 @@ class LLMService:
             # If we got here, the key is valid
             return True, test_models, None
 
-        except litellm.exceptions.AuthenticationError:
+        except litellm.exceptions.AuthenticationError as e:
+            logger.warning(f"Key validation failed for {provider}: {str(e)}")
             return False, None, "Invalid API key"
-        except litellm.exceptions.RateLimitError:
+        except litellm.exceptions.RateLimitError as e:
+            logger.warning(f"Rate limit during validation for {provider}: {str(e)}")
             # Rate limit means the key is valid but quota exceeded
             return True, test_models, "Rate limit exceeded (but key is valid)"
         except Exception as e:
-            return False, None, str(e)
+            logger.error(f"Unexpected error during key validation for {provider}: {str(e)}", exc_info=True)
+            return False, None, "Validation failed. Please try again."
