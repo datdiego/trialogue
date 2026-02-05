@@ -93,6 +93,17 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
         {/* Content */}
         <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-8rem)]">
+          {/* Security Warning */}
+          <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium mb-1">
+              ⚠️ Security Notice
+            </p>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+              API keys are stored locally in your browser. Only use trusted devices.
+              Never share your screen while keys are visible.
+            </p>
+          </div>
+
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
             Enter your API keys to start chatting with AI models. Keys are stored locally in your browser.
           </p>
