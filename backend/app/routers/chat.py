@@ -41,7 +41,7 @@ async def get_demo_models():
 
 
 @router.post("/chat")
-@limiter.limit("10/minute")
+@limiter.limit("30/minute")
 async def chat(
     chat_request: ChatRequest,
     request: Request,
