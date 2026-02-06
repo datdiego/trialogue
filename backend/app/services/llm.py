@@ -29,8 +29,8 @@ SAFE_ERROR_MESSAGES = {
 PROVIDER_PREFIXES = {
     "openai": ["gpt-", "o1-"],
     "anthropic": ["claude-"],
-    "google": ["gemini-", "models/gemini-"],
-    "groq": ["llama", "mixtral", "gemma"],
+    "google": ["gemini-", "gemini/", "models/gemini-"],
+    "groq": ["llama", "mixtral", "gemma", "groq/"],
 }
 
 # Model lists for validation responses
