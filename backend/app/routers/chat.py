@@ -16,6 +16,7 @@ from app.models.schemas import (
     ValidateKeyResponse,
 )
 from app.services.llm import LLMService
+from app.config import DEMO_KEYS, DEMO_MODELS, get_demo_key, is_demo_model
 
 router = APIRouter()
 
@@ -26,8 +27,20 @@ from slowapi.util import get_remote_address
 limiter = Limiter(key_func=get_remote_address)
 
 
+@router.get("/demo-models")
+async def get_demo_models():
+    """
+    Return list of available demo models (no keys exposed).
+    Only returns models where demo keys are actually configured.
+    """
+    available = []
+    for model_id, provider in DEMO_MODELS.items():
+        if DEMO_KEYS.get(provider):
+            available.append({"id": model_id, "provider": provider})
+    return {"models": available}
+
+
 @router.post("/chat")
-@limiter.limit("10/minute")  # 10 requests per minute per IP
 async def chat(
     chat_request: ChatRequest,
     request: Request,
@@ -44,14 +57,44 @@ async def chat(
     - X-Anthropic-Key: Anthropic API key
     - X-Google-Key: Google AI API key
     - X-Groq-Key: Groq API key
+
+    If no user key is provided but a demo key is available, the demo key is used.
+    Demo requests have stricter rate limits (3/minute vs 10/minute for BYOK).
     """
-    # Collect API keys
-    api_keys = {
+    # Collect user-provided API keys
+    user_api_keys = {
         "openai": x_openai_key,
         "anthropic": x_anthropic_key,
         "google": x_google_key,
         "groq": x_groq_key,
     }
+
+    # Track which models are using demo keys
+    demo_models_used = set()
+    api_keys = user_api_keys.copy()
+
+    # For each model, check if we need to use demo key
+    for model in chat_request.models:
+        # Get the provider for this model
+        from app.services.llm import LLMService
+        provider = LLMService._get_provider_from_model(model)
+
+        # If user didn't provide a key for this provider, try demo key
+        if provider and not user_api_keys.get(provider):
+            demo_key = get_demo_key(model)
+            if demo_key:
+                api_keys[provider] = demo_key
+                demo_models_used.add(model)
+
+    # Apply rate limiting based on whether demo keys are used
+    # Demo requests: 3/minute, BYOK: 10/minute
+    is_demo_request = len(demo_models_used) > 0
+    if is_demo_request:
+        # Stricter limit for demo mode
+        await limiter.limit("3/minute")(request)
+    else:
+        # Standard BYOK limit
+        await limiter.limit("10/minute")(request)
 
     async def generate():
         """Generate SSE stream with parallel model queries"""
@@ -61,6 +104,7 @@ async def chat(
         async def stream_model(model: str):
             """Stream from a single model and put chunks in queue"""
             try:
+                is_demo = model in demo_models_used
                 async for chunk in LLMService.chat_stream(
                     model=model,
                     messages=chat_request.messages,
@@ -68,6 +112,8 @@ async def chat(
                     temperature=chat_request.temperature or 0.7,
                     max_tokens=chat_request.max_tokens or 1000,
                 ):
+                    # Mark chunk as demo if using demo key
+                    chunk.is_demo = is_demo
                     await queue.put(chunk)
             except Exception as e:
                 # Handle unexpected errors
@@ -76,6 +122,7 @@ async def chat(
                     content="",
                     done=True,
                     error=f"Unexpected error: {str(e)}",
+                    is_demo=model in demo_models_used,
                 )
                 await queue.put(error_chunk)
 
@@ -108,6 +155,7 @@ async def chat(
                             content="",
                             done=True,
                             error="Stream timeout",
+                            is_demo=model in demo_models_used,
                         )
                         yield f"data: {error_chunk.model_dump_json()}\n\n"
                         completed_models.add(model)

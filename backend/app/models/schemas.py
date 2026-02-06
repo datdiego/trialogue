@@ -43,6 +43,7 @@ class ChatStreamChunk(BaseModel):
     content: str  # Changed from 'delta' to match frontend expectations
     done: bool = False
     error: Optional[str] = None  # Optional error message
+    is_demo: bool = False  # Whether this request is using demo keys
 
 
 class ValidateKeyRequest(BaseModel):
