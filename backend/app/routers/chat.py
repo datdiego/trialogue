@@ -41,6 +41,7 @@ async def get_demo_models():
 
 
 @router.post("/chat")
+@limiter.limit("10/minute")
 async def chat(
     chat_request: ChatRequest,
     request: Request,
@@ -86,15 +87,7 @@ async def chat(
                 api_keys[provider] = demo_key
                 demo_models_used.add(model)
 
-    # Apply rate limiting based on whether demo keys are used
-    # Demo requests: 3/minute, BYOK: 10/minute
     is_demo_request = len(demo_models_used) > 0
-    if is_demo_request:
-        # Stricter limit for demo mode
-        await limiter.limit("3/minute")(request)
-    else:
-        # Standard BYOK limit
-        await limiter.limit("10/minute")(request)
 
     async def generate():
         """Generate SSE stream with parallel model queries"""
