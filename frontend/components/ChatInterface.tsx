@@ -40,6 +40,7 @@ export default function ChatInterface() {
   const [darkMode, setDarkMode] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('parallel');
   const [followUpTarget, setFollowUpTarget] = useState<string | null>(null); // Model to send follow-up to
+  const [demoModels, setDemoModels] = useState<Record<string, boolean>>({}); // Track which models are using demo keys
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -103,6 +104,7 @@ export default function ChatInterface() {
       Object.entries(apiKeysRaw).filter(([_, v]) => v !== undefined) as [string, string][]
     );
     const responsesMap: Record<string, string> = {};
+    const demoModelsMap: Record<string, boolean> = {};
 
     // Determine which models to query
     const targetModels = followUpTarget ? [followUpTarget] : selectedModels;
@@ -125,6 +127,11 @@ export default function ChatInterface() {
           responsesMap[chunk.model] = '';
         }
 
+        // Track if this model is using demo key
+        if (chunk.is_demo) {
+          demoModelsMap[chunk.model] = true;
+        }
+
         if (chunk.error) {
           responsesMap[chunk.model] = `Error: ${chunk.error}`;
         } else if (!chunk.done) {
@@ -132,6 +139,7 @@ export default function ChatInterface() {
         }
 
         setCurrentResponses({ ...responsesMap });
+        setDemoModels({ ...demoModelsMap });
       }
 
       // Add assistant responses as trialogue messages
@@ -390,8 +398,15 @@ export default function ChatInterface() {
                 key={model}
                 className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col"
               >
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 font-medium text-gray-900 dark:text-gray-100 flex items-center justify-between">
-                  <span>{model}</span>
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 font-medium text-gray-900 dark:text-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span>{model}</span>
+                    {demoModels[model] && (
+                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded uppercase font-semibold">
+                        DEMO
+                      </span>
+                    )}
+                  </div>
                   {!isStreaming && (
                     <button
                       onClick={() => setFollowUpTarget(model)}
@@ -453,9 +468,14 @@ export default function ChatInterface() {
                     key={response.id}
                     className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col"
                   >
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-                      <div className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                      <div className="font-medium text-gray-900 dark:text-gray-100 mb-1 flex items-center gap-2">
                         {response.model}
+                        {demoModels[response.model || ''] && (
+                          <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded uppercase font-semibold">
+                            DEMO
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         {new Date(response.timestamp).toLocaleTimeString()}
@@ -488,8 +508,13 @@ export default function ChatInterface() {
                     key={model}
                     className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col"
                   >
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 font-medium text-gray-900 dark:text-gray-100">
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
                       {model}
+                      {demoModels[model] && (
+                        <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded uppercase font-semibold">
+                          DEMO
+                        </span>
+                      )}
                     </div>
                     <div className="flex-1 p-4">
                       <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">

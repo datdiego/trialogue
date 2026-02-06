@@ -88,6 +88,16 @@ export interface ChatStreamChunk {
   content: string;
   done: boolean;
   error?: string;
+  is_demo?: boolean;
+}
+
+export interface DemoModel {
+  id: string;
+  provider: string;
+}
+
+export interface DemoModelsResponse {
+  models: DemoModel[];
 }
 
 export interface ValidateKeyRequest {
@@ -198,6 +208,31 @@ export const api = {
         valid: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
+    }
+  },
+
+  /**
+   * Fetch available demo models from the backend
+   */
+  async fetchDemoModels(): Promise<DemoModelsResponse> {
+    try {
+      return await withRetry(async () => {
+        const response = await fetch(`${API_BASE_URL}/api/demo-models`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+      }, 'Fetch demo models');
+    } catch (error) {
+      console.error('Failed to fetch demo models:', error);
+      return { models: [] };
     }
   },
 };
