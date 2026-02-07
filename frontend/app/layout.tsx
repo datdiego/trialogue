@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Analytics } from '@vercel/analytics/react';
 import "./globals.css";
 
@@ -19,16 +18,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {GA_ID && (
-          <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-            strategy="afterInteractive"
-            onLoad={() => {
-              (window as any).dataLayer = (window as any).dataLayer || [];
-              function gtag(...args: any[]) { (window as any).dataLayer.push(args); }
-              gtag('js', new Date());
-              gtag('config', GA_ID);
-            }}
-          />
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${GA_ID}');`,
+              }}
+            />
+          </>
         )}
       </head>
       <body className="antialiased">
