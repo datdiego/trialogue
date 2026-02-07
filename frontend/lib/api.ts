@@ -91,6 +91,23 @@ export interface ChatStreamChunk {
   is_demo?: boolean;
 }
 
+export interface DebateRequest {
+  question: string;
+  models: string[];
+  temperature?: number;
+  max_tokens?: number;
+}
+
+export interface DebateRound {
+  round: number;  // 1, 2, or 3
+  model: string;
+  content: string;
+  round_type: string;  // "answer", "review", "consensus"
+  done: boolean;
+  error?: string;
+  is_demo?: boolean;
+}
+
 export interface DemoModel {
   id: string;
   provider: string;
@@ -233,6 +250,74 @@ export const api = {
     } catch (error) {
       console.error('Failed to fetch demo models:', error);
       return { models: [] };
+    }
+  },
+
+  /**
+   * Stream debate responses with multi-round interaction
+   */
+  async *streamDebate(
+    request: DebateRequest,
+    apiKeys: Record<string, string>
+  ): AsyncGenerator<DebateRound> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add API keys as headers
+    if (apiKeys.openai) headers['X-OpenAI-Key'] = apiKeys.openai;
+    if (apiKeys.anthropic) headers['X-Anthropic-Key'] = apiKeys.anthropic;
+    if (apiKeys.google) headers['X-Google-Key'] = apiKeys.google;
+    if (apiKeys.groq) headers['X-Groq-Key'] = apiKeys.groq;
+
+    // Use retry logic for the initial connection
+    const response = await withRetry(async () => {
+      const res = await fetch(`${API_BASE_URL}/api/debate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      return res;
+    }, 'Debate API request');
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body');
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+
+            try {
+              const chunk: DebateRound = JSON.parse(data);
+              yield chunk;
+            } catch (error) {
+              console.error('Failed to parse SSE data:', error);
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
     }
   },
 };

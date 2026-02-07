@@ -14,6 +14,8 @@ from app.models.schemas import (
     ChatStreamChunk,
     ValidateKeyRequest,
     ValidateKeyResponse,
+    DebateRequest,
+    DebateRound,
 )
 from app.services.llm import LLMService
 from app.config import DEMO_KEYS, DEMO_MODELS, get_demo_key, is_demo_model
@@ -187,4 +189,328 @@ async def validate_key(http_request: Request, request: ValidateKeyRequest):
         valid=valid,
         models=models,
         error=error,
+    )
+
+
+@router.post("/debate")
+@limiter.limit("30/minute")
+async def debate(
+    debate_request: DebateRequest,
+    request: Request,
+    x_openai_key: Optional[str] = Header(None, alias="X-OpenAI-Key"),
+    x_anthropic_key: Optional[str] = Header(None, alias="X-Anthropic-Key"),
+    x_google_key: Optional[str] = Header(None, alias="X-Google-Key"),
+    x_groq_key: Optional[str] = Header(None, alias="X-Groq-Key"),
+):
+    """
+    Multi-round debate between AI models
+
+    Round 1: All models answer the question independently
+    Round 2: Each model reviews others' responses and identifies agreements/disagreements
+    Round 3: All models generate a consensus summary
+    """
+    # Collect user-provided API keys
+    user_api_keys = {
+        "openai": x_openai_key,
+        "anthropic": x_anthropic_key,
+        "google": x_google_key,
+        "groq": x_groq_key,
+    }
+
+    # Track which models are using demo keys
+    demo_models_used = set()
+    api_keys = user_api_keys.copy()
+
+    # For each model, check if we need to use demo key
+    for model in debate_request.models:
+        provider = LLMService._get_provider_from_model(model)
+
+        if provider and not user_api_keys.get(provider):
+            demo_key = get_demo_key(model)
+            if demo_key:
+                api_keys[provider] = demo_key
+                demo_models_used.add(model)
+
+    async def generate_debate():
+        """Generate multi-round debate stream"""
+        queue: asyncio.Queue = asyncio.Queue()
+
+        # Store responses from each round
+        round1_responses = {}
+        round2_responses = {}
+
+        # === ROUND 1: Independent Answers ===
+        async def stream_round1(model: str):
+            """Stream Round 1 response from a single model"""
+            try:
+                is_demo = model in demo_models_used
+                content_buffer = ""
+
+                async for chunk in LLMService.chat_stream(
+                    model=model,
+                    messages=[{"role": "user", "content": debate_request.question}],
+                    api_keys=api_keys,
+                    temperature=debate_request.temperature or 0.7,
+                    max_tokens=debate_request.max_tokens or 1000,
+                ):
+                    if not chunk.done:
+                        content_buffer += chunk.content
+
+                    debate_chunk = DebateRound(
+                        round=1,
+                        model=model,
+                        content=chunk.content,
+                        round_type="answer",
+                        done=chunk.done,
+                        error=chunk.error,
+                        is_demo=is_demo,
+                    )
+                    await queue.put(debate_chunk)
+
+                # Store full response for Round 2
+                round1_responses[model] = content_buffer
+
+            except Exception as e:
+                error_chunk = DebateRound(
+                    round=1,
+                    model=model,
+                    content="",
+                    round_type="answer",
+                    done=True,
+                    error=f"Round 1 error: {str(e)}",
+                    is_demo=model in demo_models_used,
+                )
+                await queue.put(error_chunk)
+                round1_responses[model] = f"Error: {str(e)}"
+
+        # Start Round 1 for all models
+        tasks = [asyncio.create_task(stream_round1(model)) for model in debate_request.models]
+
+        # Track completion
+        completed_models = set()
+        total_models = len(debate_request.models)
+
+        # Process Round 1 chunks
+        while len(completed_models) < total_models:
+            try:
+                chunk = await asyncio.wait_for(queue.get(), timeout=60.0)
+                yield f"data: {chunk.model_dump_json()}\n\n"
+
+                if chunk.done:
+                    completed_models.add(chunk.model)
+            except asyncio.TimeoutError:
+                for model in debate_request.models:
+                    if model not in completed_models:
+                        error_chunk = DebateRound(
+                            round=1,
+                            model=model,
+                            content="",
+                            round_type="answer",
+                            done=True,
+                            error="Stream timeout",
+                            is_demo=model in demo_models_used,
+                        )
+                        yield f"data: {error_chunk.model_dump_json()}\n\n"
+                        completed_models.add(model)
+                        round1_responses[model] = "Error: Timeout"
+                break
+
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        # === ROUND 2: Review & Critique ===
+        async def stream_round2(model: str):
+            """Stream Round 2 response (review) from a single model"""
+            try:
+                is_demo = model in demo_models_used
+
+                # Build prompt with other models' responses
+                other_responses = "\n\n".join([
+                    f"Model: {other_model}\nResponse: {response}"
+                    for other_model, response in round1_responses.items()
+                    if other_model != model
+                ])
+
+                round2_prompt = f"""You were asked: "{debate_request.question}"
+
+Your response was:
+{round1_responses.get(model, "No response")}
+
+Other AI models responded:
+{other_responses}
+
+Please review the other responses and provide:
+1. **Points of Agreement**: Where you agree with other models
+2. **Points of Disagreement**: Where you disagree, and why"""
+
+                content_buffer = ""
+
+                async for chunk in LLMService.chat_stream(
+                    model=model,
+                    messages=[{"role": "user", "content": round2_prompt}],
+                    api_keys=api_keys,
+                    temperature=debate_request.temperature or 0.7,
+                    max_tokens=debate_request.max_tokens or 1000,
+                ):
+                    if not chunk.done:
+                        content_buffer += chunk.content
+
+                    debate_chunk = DebateRound(
+                        round=2,
+                        model=model,
+                        content=chunk.content,
+                        round_type="review",
+                        done=chunk.done,
+                        error=chunk.error,
+                        is_demo=is_demo,
+                    )
+                    await queue.put(debate_chunk)
+
+                round2_responses[model] = content_buffer
+
+            except Exception as e:
+                error_chunk = DebateRound(
+                    round=2,
+                    model=model,
+                    content="",
+                    round_type="review",
+                    done=True,
+                    error=f"Round 2 error: {str(e)}",
+                    is_demo=model in demo_models_used,
+                )
+                await queue.put(error_chunk)
+                round2_responses[model] = f"Error: {str(e)}"
+
+        # Start Round 2 for all models
+        tasks = [asyncio.create_task(stream_round2(model)) for model in debate_request.models]
+        completed_models = set()
+
+        # Process Round 2 chunks
+        while len(completed_models) < total_models:
+            try:
+                chunk = await asyncio.wait_for(queue.get(), timeout=60.0)
+                yield f"data: {chunk.model_dump_json()}\n\n"
+
+                if chunk.done:
+                    completed_models.add(chunk.model)
+            except asyncio.TimeoutError:
+                for model in debate_request.models:
+                    if model not in completed_models:
+                        error_chunk = DebateRound(
+                            round=2,
+                            model=model,
+                            content="",
+                            round_type="review",
+                            done=True,
+                            error="Stream timeout",
+                            is_demo=model in demo_models_used,
+                        )
+                        yield f"data: {error_chunk.model_dump_json()}\n\n"
+                        completed_models.add(model)
+                        round2_responses[model] = "Error: Timeout"
+                break
+
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        # === ROUND 3: Consensus ===
+        async def stream_round3(model: str):
+            """Stream Round 3 response (consensus) from a single model"""
+            try:
+                is_demo = model in demo_models_used
+
+                # Build full debate history
+                round1_summary = "\n\n".join([
+                    f"Model: {m}\nAnswer: {response}"
+                    for m, response in round1_responses.items()
+                ])
+
+                round2_summary = "\n\n".join([
+                    f"Model: {m}\nReview: {response}"
+                    for m, response in round2_responses.items()
+                ])
+
+                round3_prompt = f"""Multiple AI models discussed this question: "{debate_request.question}"
+
+Here is the full discussion:
+
+ROUND 1 - Initial Answers:
+{round1_summary}
+
+ROUND 2 - Reviews and Critiques:
+{round2_summary}
+
+Based on this discussion, provide:
+1. **Consensus**: Points all models agree on
+2. **Remaining Disagreements**: Points where models still differ
+3. **Final Answer**: A synthesized best answer incorporating all perspectives"""
+
+                async for chunk in LLMService.chat_stream(
+                    model=model,
+                    messages=[{"role": "user", "content": round3_prompt}],
+                    api_keys=api_keys,
+                    temperature=debate_request.temperature or 0.7,
+                    max_tokens=debate_request.max_tokens or 1000,
+                ):
+                    debate_chunk = DebateRound(
+                        round=3,
+                        model=model,
+                        content=chunk.content,
+                        round_type="consensus",
+                        done=chunk.done,
+                        error=chunk.error,
+                        is_demo=is_demo,
+                    )
+                    await queue.put(debate_chunk)
+
+            except Exception as e:
+                error_chunk = DebateRound(
+                    round=3,
+                    model=model,
+                    content="",
+                    round_type="consensus",
+                    done=True,
+                    error=f"Round 3 error: {str(e)}",
+                    is_demo=model in demo_models_used,
+                )
+                await queue.put(error_chunk)
+
+        # Start Round 3 for all models
+        tasks = [asyncio.create_task(stream_round3(model)) for model in debate_request.models]
+        completed_models = set()
+
+        # Process Round 3 chunks
+        while len(completed_models) < total_models:
+            try:
+                chunk = await asyncio.wait_for(queue.get(), timeout=60.0)
+                yield f"data: {chunk.model_dump_json()}\n\n"
+
+                if chunk.done:
+                    completed_models.add(chunk.model)
+            except asyncio.TimeoutError:
+                for model in debate_request.models:
+                    if model not in completed_models:
+                        error_chunk = DebateRound(
+                            round=3,
+                            model=model,
+                            content="",
+                            round_type="consensus",
+                            done=True,
+                            error="Stream timeout",
+                            is_demo=model in demo_models_used,
+                        )
+                        yield f"data: {error_chunk.model_dump_json()}\n\n"
+                        completed_models.add(model)
+                break
+
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Send final done signal
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        generate_debate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
     )

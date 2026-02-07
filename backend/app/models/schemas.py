@@ -57,3 +57,38 @@ class ValidateKeyResponse(BaseModel):
     valid: bool
     models: Optional[List[str]] = None
     error: Optional[str] = None
+
+
+class DebateRequest(BaseModel):
+    """Request schema for /api/debate endpoint"""
+    question: str = Field(..., min_length=1, max_length=32000)
+    models: List[str] = Field(..., min_length=2, max_length=3)
+    temperature: Optional[float] = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: Optional[int] = Field(default=1000, ge=1, le=4096)
+
+    @field_validator('models')
+    @classmethod
+    def validate_models(cls, v):
+        """Validate that model names follow expected patterns"""
+        from app.services.llm import PROVIDER_PREFIXES
+
+        for model in v:
+            valid = any(
+                model.lower().startswith(prefix.lower())
+                for prefixes in PROVIDER_PREFIXES.values()
+                for prefix in prefixes
+            )
+            if not valid:
+                raise ValueError(f"Unknown model: {model}")
+        return v
+
+
+class DebateRound(BaseModel):
+    """Streaming response chunk for debate"""
+    round: int  # 1, 2, or 3
+    model: str
+    content: str
+    round_type: str  # "answer", "review", "consensus"
+    done: bool = False
+    error: Optional[str] = None
+    is_demo: bool = False

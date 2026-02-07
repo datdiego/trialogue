@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Settings, Moon, Sun, Wifi, WifiOff, Loader2, MessageSquare, GitCompare, Users, Github, Coffee } from 'lucide-react';
+import { Send, Settings, Moon, Sun, Wifi, WifiOff, Loader2, MessageSquare, Users, Github, Coffee } from 'lucide-react';
 import { api, type Message, type ChatStreamChunk } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import ModelSelector from './ModelSelector';
@@ -26,7 +26,7 @@ interface TrialogueMessage {
 }
 
 type ConnectionState = 'idle' | 'connecting' | 'streaming' | 'error';
-type ViewMode = 'parallel' | 'comparison' | 'debate';
+type ViewMode = 'parallel' | 'debate';
 
 export default function ChatInterface() {
   const [trialogueMessages, setTrialogueMessages] = useState<TrialogueMessage[]>([]);
@@ -326,7 +326,7 @@ export default function ChatInterface() {
           />
 
           {/* View Mode Selector */}
-          {selectedModels.length > 0 && trialogueMessages.length > 0 && (
+          {selectedModels.length > 0 && (
             <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('parallel')}
@@ -335,22 +335,10 @@ export default function ChatInterface() {
                     ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
                 }`}
-                title="Parallel view"
+                title="Parallel chat view"
               >
                 <MessageSquare className="w-4 h-4 inline mr-1" />
                 Parallel
-              </button>
-              <button
-                onClick={() => setViewMode('comparison')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  viewMode === 'comparison'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-                }`}
-                title="Comparison view"
-              >
-                <GitCompare className="w-4 h-4 inline mr-1" />
-                Compare
               </button>
               <button
                 onClick={() => setViewMode('debate')}
@@ -359,7 +347,7 @@ export default function ChatInterface() {
                     ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
                 }`}
-                title="Debate view"
+                title="Multi-round debate mode"
               >
                 <Users className="w-4 h-4 inline mr-1" />
                 Debate
@@ -379,18 +367,12 @@ export default function ChatInterface() {
             </div>
           </div>
         ) : viewMode === 'debate' ? (
-          // Debate View - Threaded conversation view
+          // Debate View - Multi-round debate with independent answers, review, and consensus
           <DebateView
-            messages={trialogueMessages}
             selectedModels={selectedModels}
-            onAskModel={(model, question) => {
-              setFollowUpTarget(model);
-              setInput(question);
-              setViewMode('parallel');
-            }}
             darkMode={darkMode}
           />
-        ) : viewMode === 'parallel' ? (
+        ) : (
           // Parallel View - Each model in its own column
           <div className="h-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 overflow-y-auto">
             {selectedModels.map((model) => (
@@ -444,88 +426,6 @@ export default function ChatInterface() {
                 </div>
               </div>
             ))}
-          </div>
-        ) : (
-          // Comparison View - Side-by-side comparison of last responses
-          <div className="h-full overflow-y-auto p-4">
-            <div className="max-w-6xl mx-auto space-y-6">
-              {/* User Question */}
-              {getLastUserMessage() && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                  <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-                    Question:
-                  </div>
-                  <div className="text-blue-800 dark:text-blue-200 whitespace-pre-wrap">
-                    {getLastUserMessage()?.content}
-                  </div>
-                </div>
-              )}
-
-              {/* Model Responses Comparison */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {getLastResponses().map((response) => (
-                  <div
-                    key={response.id}
-                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col"
-                  >
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                      <div className="font-medium text-gray-900 dark:text-gray-100 mb-1 flex items-center gap-2">
-                        {response.model}
-                        {demoModels[response.model || ''] && (
-                          <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded uppercase font-semibold">
-                            DEMO
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(response.timestamp).toLocaleTimeString()}
-                      </div>
-                    </div>
-                    <div className="flex-1 p-4">
-                      <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                        {response.content}
-                      </div>
-                    </div>
-                    {!isStreaming && (
-                      <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-                        <button
-                          onClick={() => {
-                            setFollowUpTarget(response.model || null);
-                            setViewMode('parallel');
-                          }}
-                          className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors w-full"
-                        >
-                          Ask Follow-up
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {/* Streaming responses in comparison view */}
-                {isStreaming && Object.entries(currentResponses).map(([model, content]) => (
-                  <div
-                    key={model}
-                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col"
-                  >
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      {model}
-                      {demoModels[model] && (
-                        <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded uppercase font-semibold">
-                          DEMO
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 p-4">
-                      <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                        {content}
-                        <span className="animate-pulse">▋</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
