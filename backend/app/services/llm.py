@@ -118,7 +118,10 @@ class LLMService:
                 return
 
             # Convert messages to dict format for LiteLLM
-            formatted_messages = [msg.model_dump() for msg in messages]
+            formatted_messages = [
+                msg.model_dump() if hasattr(msg, 'model_dump') else msg
+                for msg in messages
+            ]
 
             # Call LiteLLM with streaming
             response = await acompletion(
