@@ -10,11 +10,11 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' va.vercel-scripts.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' va.vercel-scripts.com www.googletagmanager.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https:",
               "font-src 'self' data:",
-              "connect-src 'self' https://va.vercel-analytics.com http://localhost:8000 https://*.railway.app",
+              "connect-src 'self' https://va.vercel-analytics.com https://www.google-analytics.com https://analytics.google.com http://localhost:8000 https://*.railway.app",
               "frame-ancestors 'none'",
             ].join('; '),
           },
