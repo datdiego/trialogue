@@ -7,6 +7,7 @@ import { storage } from '@/lib/storage';
 import ModelSelector from './ModelSelector';
 import SettingsModal from './SettingsModal';
 import DebateView from './DebateView';
+import Markdown from './Markdown';
 
 interface ModelResponse {
   model: string;
@@ -411,15 +412,19 @@ export default function ChatInterface() {
                         msg.role === 'user'
                           ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-                      } rounded-lg p-3 text-sm whitespace-pre-wrap`}
+                      } rounded-lg p-3 text-sm`}
                     >
-                      {msg.content}
+                      {msg.role === 'user' ? (
+                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                      ) : (
+                        <Markdown content={msg.content} />
+                      )}
                     </div>
                   ))}
 
                   {isStreaming && currentResponses[model] && (
-                    <div className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg p-3 text-sm whitespace-pre-wrap">
-                      {currentResponses[model]}
+                    <div className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg p-3 text-sm">
+                      <Markdown content={currentResponses[model]} />
                       <span className="animate-pulse">▋</span>
                     </div>
                   )}

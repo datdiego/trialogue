@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Send, ChevronDown, ChevronUp, Loader2, Users, MessageSquare, GitCompare, CheckCircle2 } from 'lucide-react';
 import { api, type DebateRound } from '@/lib/api';
 import { storage } from '@/lib/storage';
+import Markdown from './Markdown';
 
 interface DebateViewProps {
   selectedModels: string[];
@@ -315,14 +316,18 @@ export default function DebateView({ selectedModels, darkMode }: DebateViewProps
                             </span>
                           )}
                         </div>
-                        <div className={`text-sm ${getModelTextColor(idx)} whitespace-pre-wrap`}>
-                          {round1Responses[model] || currentBuffers[model] || (
+                        <div className={`text-sm ${getModelTextColor(idx)}`}>
+                          {round1Responses[model] ? (
+                            <Markdown content={round1Responses[model]} />
+                          ) : currentBuffers[model] ? (
+                            <>
+                              <Markdown content={currentBuffers[model]} />
+                              {currentRound === 1 && <span className="animate-pulse">▋</span>}
+                            </>
+                          ) : (
                             <span className="text-gray-500 dark:text-gray-400 italic">
                               Waiting for response...
                             </span>
-                          )}
-                          {currentRound === 1 && currentBuffers[model] && (
-                            <span className="animate-pulse">▋</span>
                           )}
                         </div>
                       </div>
@@ -373,14 +378,18 @@ export default function DebateView({ selectedModels, darkMode }: DebateViewProps
                               </span>
                             )}
                           </div>
-                          <div className={`text-sm ${getModelTextColor(idx)} whitespace-pre-wrap`}>
-                            {round2Responses[model] || (currentRound === 2 && currentBuffers[model]) || (
+                          <div className={`text-sm ${getModelTextColor(idx)}`}>
+                            {round2Responses[model] ? (
+                              <Markdown content={round2Responses[model]} />
+                            ) : (currentRound === 2 && currentBuffers[model]) ? (
+                              <>
+                                <Markdown content={currentBuffers[model]} />
+                                <span className="animate-pulse">▋</span>
+                              </>
+                            ) : (
                               <span className="text-gray-500 dark:text-gray-400 italic">
                                 Waiting for review...
                               </span>
-                            )}
-                            {currentRound === 2 && currentBuffers[model] && (
-                              <span className="animate-pulse">▋</span>
                             )}
                           </div>
                         </div>
@@ -432,14 +441,18 @@ export default function DebateView({ selectedModels, darkMode }: DebateViewProps
                               </span>
                             )}
                           </div>
-                          <div className={`text-sm ${getModelTextColor(idx)} whitespace-pre-wrap`}>
-                            {round3Responses[model] || (currentRound === 3 && currentBuffers[model]) || (
+                          <div className={`text-sm ${getModelTextColor(idx)}`}>
+                            {round3Responses[model] ? (
+                              <Markdown content={round3Responses[model]} />
+                            ) : (currentRound === 3 && currentBuffers[model]) ? (
+                              <>
+                                <Markdown content={currentBuffers[model]} />
+                                <span className="animate-pulse">▋</span>
+                              </>
+                            ) : (
                               <span className="text-gray-500 dark:text-gray-400 italic">
                                 Waiting for consensus...
                               </span>
-                            )}
-                            {currentRound === 3 && currentBuffers[model] && (
-                              <span className="animate-pulse">▋</span>
                             )}
                           </div>
                         </div>
