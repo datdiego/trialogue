@@ -1,22 +1,67 @@
 """
 Demo Mode Configuration
-Handles demo API keys and model eligibility
+Handles demo API keys, model eligibility, and session call limits
 """
 import os
+import time
+from collections import defaultdict
 
 # Demo keys stored as Railway environment variables
 # These keys are NEVER exposed in API responses or logs
 DEMO_KEYS = {
-    "google": os.getenv("DEMO_GOOGLE_KEY"),
     "groq": os.getenv("DEMO_GROQ_KEY"),
 }
 
 # Only these models can be used in demo mode
-# Maps model ID to provider name
+# Both on Groq free tier — no billing required
 DEMO_MODELS = {
-    "gemini/gemini-2.0-flash": "google",
     "groq/llama-3.3-70b-versatile": "groq",
+    "groq/llama-3.1-8b-instant": "groq",
 }
+
+# Demo session limits
+# 5 API calls per session allows: 1 parallel chat (2 models = 2 calls)
+# + 1 debate round 1 (2 calls) + partial round 2 (1 call) = 5
+# Or: 1 parallel chat (2 calls) + 1 debate with 1 model (3 rounds = 3 calls) = 5
+DEMO_CALLS_PER_SESSION = 5
+DEMO_SESSION_WINDOW = 3600  # 1 hour window per IP
+
+# In-memory tracker: {ip: [(timestamp, call_count), ...]}
+_demo_call_tracker: dict[str, list[float]] = defaultdict(list)
+
+
+def check_demo_limit(client_ip: str, num_calls: int = 1) -> tuple[bool, int]:
+    """
+    Check if a demo session has remaining API calls.
+
+    Args:
+        client_ip: Client IP address
+        num_calls: Number of calls about to be made
+
+    Returns:
+        (allowed, remaining) — whether the calls are allowed and how many remain
+    """
+    now = time.time()
+    cutoff = now - DEMO_SESSION_WINDOW
+
+    # Prune old entries
+    _demo_call_tracker[client_ip] = [
+        t for t in _demo_call_tracker[client_ip] if t > cutoff
+    ]
+
+    used = len(_demo_call_tracker[client_ip])
+    remaining = DEMO_CALLS_PER_SESSION - used
+
+    if num_calls > remaining:
+        return False, remaining
+
+    return True, remaining
+
+
+def record_demo_calls(client_ip: str, num_calls: int = 1):
+    """Record demo API calls for rate tracking."""
+    now = time.time()
+    _demo_call_tracker[client_ip].extend([now] * num_calls)
 
 
 def get_demo_key(model: str) -> str | None:

@@ -18,7 +18,10 @@ from app.models.schemas import (
     DebateRound,
 )
 from app.services.llm import LLMService
-from app.config import DEMO_KEYS, DEMO_MODELS, get_demo_key, is_demo_model
+from app.config import (
+    DEMO_KEYS, DEMO_MODELS, get_demo_key, is_demo_model,
+    check_demo_limit, record_demo_calls,
+)
 
 router = APIRouter()
 
@@ -30,16 +33,21 @@ limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/demo-models")
-async def get_demo_models():
+async def get_demo_models(request: Request):
     """
     Return list of available demo models (no keys exposed).
     Only returns models where demo keys are actually configured.
+    Also returns remaining demo calls for this session.
     """
     available = []
     for model_id, provider in DEMO_MODELS.items():
         if DEMO_KEYS.get(provider):
             available.append({"id": model_id, "provider": provider})
-    return {"models": available}
+
+    client_ip = request.client.host if request.client else "unknown"
+    _, remaining = check_demo_limit(client_ip, 0)
+
+    return {"models": available, "remaining_calls": remaining}
 
 
 @router.post("/chat")
@@ -90,6 +98,19 @@ async def chat(
                 demo_models_used.add(model)
 
     is_demo_request = len(demo_models_used) > 0
+
+    # Enforce demo session call limit
+    if is_demo_request:
+        client_ip = request.client.host if request.client else "unknown"
+        num_calls = len(chat_request.models)
+        allowed, remaining = check_demo_limit(client_ip, num_calls)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Demo session limit reached ({remaining} calls remaining). "
+                       f"Add your own API keys for unlimited access."
+            )
+        record_demo_calls(client_ip, num_calls)
 
     async def generate():
         """Generate SSE stream with parallel model queries"""
@@ -230,6 +251,20 @@ async def debate(
             if demo_key:
                 api_keys[provider] = demo_key
                 demo_models_used.add(model)
+
+    # Enforce demo session call limit
+    # Debate uses 3 rounds × N models = 3N API calls
+    if len(demo_models_used) > 0:
+        client_ip = request.client.host if request.client else "unknown"
+        num_calls = len(debate_request.models) * 3  # 3 rounds
+        allowed, remaining = check_demo_limit(client_ip, num_calls)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Demo session limit reached ({remaining} calls remaining). "
+                       f"Add your own API keys for unlimited access."
+            )
+        record_demo_calls(client_ip, num_calls)
 
     async def generate_debate():
         """Generate multi-round debate stream"""
