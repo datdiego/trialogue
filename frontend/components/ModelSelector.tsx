@@ -22,9 +22,9 @@ const AVAILABLE_MODELS = [
   // Groq (free)
   { id: 'groq/llama-3.3-70b-versatile', name: 'Llama 3.3 70B', provider: 'Groq' },
   { id: 'groq/llama-3.1-8b-instant', name: 'Llama 3.1 8B', provider: 'Groq' },
-  { id: 'groq/moonshotai/kimi-k2-instruct', name: 'Kimi K2 Instruct', provider: 'Groq' },
+  { id: 'groq/moonshotai/kimi-k2-instruct-0905', name: 'Kimi K2 Instruct', provider: 'Groq' },
   { id: 'groq/openai/gpt-oss-120b', name: 'GPT-OSS 120B', provider: 'Groq' },
-  { id: 'groq/qwen/qwen3-32b', name: 'Qwen3 32B', provider: 'Groq' },
+  { id: 'groq/qwen/qwen-3-32b', name: 'Qwen3 32B', provider: 'Groq' },
 ];
 
 export default function ModelSelector({ selectedModels, onChange }: ModelSelectorProps) {
