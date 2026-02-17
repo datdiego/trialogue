@@ -72,38 +72,50 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
+      <div
+        className="rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+        style={{ background: 'var(--background)', color: 'var(--foreground)' }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2">
-            <Key className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            <Key className="w-5 h-5" style={{ color: 'var(--muted-text)' }} />
+            <h2 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>
               API Key Settings
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+            className="p-1 rounded transition-colors"
+            style={{ color: 'var(--muted-text)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
         <div className="px-6 py-4 overflow-y-auto max-h-[calc(90vh-8rem)]">
           {/* Security Warning */}
-          <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
-            <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium mb-1">
+          <div
+            className="mb-4 p-3 rounded border"
+            style={{
+              background: 'color-mix(in srgb, var(--t-highlight) 10%, var(--background))',
+              borderColor: 'color-mix(in srgb, var(--t-highlight) 30%, var(--background))',
+            }}
+          >
+            <p className="text-sm font-medium mb-1" style={{ color: 'var(--foreground)' }}>
               ⚠️ Security Notice
             </p>
-            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+            <p className="text-sm" style={{ color: 'var(--muted-text)' }}>
               API keys are stored locally in your browser. Only use trusted devices.
               Never share your screen while keys are visible.
             </p>
           </div>
 
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+          <p className="text-sm mb-6" style={{ color: 'var(--muted-text)' }}>
             Enter your API keys to start chatting with AI models. Keys are stored locally in your browser.
           </p>
 
@@ -114,7 +126,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               return (
                 <div key={provider.id} className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium" style={{ color: 'var(--foreground)' }}>
                     {provider.name}
                   </label>
                   <div className="flex gap-2">
@@ -123,19 +135,24 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       value={keys[provider.id] || ''}
                       onChange={(e) => handleKeyChange(provider.id, e.target.value)}
                       placeholder={provider.placeholder}
-                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="flex-1 px-3 py-2 border rounded-md"
+                      style={{ background: 'var(--muted)', color: 'var(--foreground)', borderColor: 'var(--border)' }}
                     />
                     <button
                       onClick={() => handleValidate(provider.id)}
                       disabled={!keys[provider.id] || isValidating}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ background: 'var(--accent)', color: 'var(--background)' }}
                     >
                       {isValidating ? 'Validating...' : 'Validate'}
                     </button>
                   </div>
 
                   {val && (
-                    <div className={`flex items-center gap-2 text-sm ${val.valid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    <div
+                      className="flex items-center gap-2 text-sm"
+                      style={{ color: val.valid ? 'var(--t-success)' : 'var(--t-danger)' }}
+                    >
                       {val.valid ? (
                         <>
                           <Check className="w-4 h-4" />
@@ -156,10 +173,13 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+        <div className="px-6 py-4 border-t flex justify-end" style={{ borderColor: 'var(--border)' }}>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600"
+            className="px-4 py-2 rounded-md transition-colors"
+            style={{ background: 'var(--muted)', color: 'var(--foreground)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--muted) 70%, var(--border))')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--muted)')}
           >
             Close
           </button>

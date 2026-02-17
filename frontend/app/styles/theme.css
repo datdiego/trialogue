@@ -1,0 +1,20 @@
+/* Semantic theme tokens → app variables */
+:root {
+  --background: var(--t-background);
+  --foreground: var(--t-foreground);
+  --accent: var(--t-accent);
+  --muted: var(--t-muted);
+  --border: var(--t-border);
+
+  /* Extra semantic tokens used by polish */
+  --muted-text: var(--t-mutedText);
+  --secondary: var(--t-accent2);
+
+  --link: var(--t-link);
+  --link-hover: var(--t-linkHover);
+
+  --code-bg: var(--t-codeBg);
+  --code-border: var(--t-codeBorder);
+
+  --texture-opacity: var(--t-textureOpacity);
+}

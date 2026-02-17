@@ -91,20 +91,25 @@ export default function ModelSelector({ selectedModels, onChange }: ModelSelecto
           return (
             <div
               key={modelId}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 rounded-full text-sm"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm"
+              style={{ background: 'color-mix(in srgb, var(--accent) 15%, var(--background))', color: 'var(--foreground)' }}
             >
               <span>{getModelName(modelId)}</span>
               {usingDemo && (
-                <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded uppercase font-semibold">
+                <span
+                  className="px-1.5 py-0.5 text-white text-xs rounded uppercase font-semibold"
+                  style={{ background: 'var(--t-highlight)' }}
+                >
                   DEMO
                 </span>
               )}
               {hasKey && !usingDemo && (
-                <span className="w-2 h-2 bg-green-500 rounded-full" title="Using your API key"></span>
+                <span className="w-2 h-2 rounded-full" style={{ background: 'var(--t-success)' }} title="Using your API key"></span>
               )}
               <button
                 onClick={() => handleRemoveModel(modelId)}
-                className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5"
+                className="rounded-full p-0.5 transition-colors"
+                style={{ color: 'var(--muted-text)' }}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -115,7 +120,8 @@ export default function ModelSelector({ selectedModels, onChange }: ModelSelecto
         {selectedModels.length < 3 && (
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center gap-2 px-3 py-1.5 border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-full text-sm hover:border-gray-400 dark:hover:border-gray-500"
+            className="flex items-center gap-2 px-3 py-1.5 border-2 border-dashed rounded-full text-sm transition-colors"
+            style={{ borderColor: 'var(--border)', color: 'var(--muted-text)' }}
           >
             <span>Add Model</span>
             <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -129,7 +135,10 @@ export default function ModelSelector({ selectedModels, onChange }: ModelSelecto
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-20 max-h-96 overflow-y-auto">
+          <div
+            className="absolute top-full left-0 mt-2 w-80 rounded-lg shadow-lg border z-20 max-h-96 overflow-y-auto"
+            style={{ background: 'var(--background)', borderColor: 'var(--border)' }}
+          >
             <div className="p-2">
               {AVAILABLE_MODELS.map((model) => {
                 const isSelected = selectedModels.includes(model.id);
@@ -142,29 +151,33 @@ export default function ModelSelector({ selectedModels, onChange }: ModelSelecto
                     key={model.id}
                     onClick={() => !isDisabled && handleToggleModel(model.id)}
                     disabled={isDisabled}
-                    className={`w-full text-left px-3 py-2 rounded-md transition-colors ${
+                    className="w-full text-left px-3 py-2 rounded-md transition-colors"
+                    style={
                       isSelected
-                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100'
+                        ? { background: 'color-mix(in srgb, var(--accent) 15%, var(--background))', color: 'var(--foreground)' }
                         : isDisabled
-                        ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100'
-                    }`}
+                        ? { color: 'var(--muted-text)', cursor: 'not-allowed', opacity: 0.5 }
+                        : { color: 'var(--foreground)' }
+                    }
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="font-medium flex items-center gap-2">
                           {model.name}
                           {demoAvailable && (
-                            <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded uppercase font-semibold">
+                            <span
+                              className="px-1.5 py-0.5 text-white text-xs rounded uppercase font-semibold"
+                              style={{ background: 'var(--t-highlight)' }}
+                            >
                               DEMO
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                        <div className="text-xs flex items-center gap-1" style={{ color: 'var(--muted-text)' }}>
                           {hasKey ? (
-                            <span className="w-2 h-2 bg-green-500 rounded-full" title="You have a key for this provider"></span>
+                            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--t-success)' }} title="You have a key for this provider"></span>
                           ) : (
-                            <span className="w-2 h-2 bg-red-500 rounded-full" title="No key provided"></span>
+                            <span className="w-2 h-2 rounded-full" style={{ background: 'var(--t-danger)' }} title="No key provided"></span>
                           )}
                           {model.provider}
                         </div>

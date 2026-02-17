@@ -1,0 +1,22 @@
+:root {
+  --t-background: #FAF7F2;
+  --t-foreground: #1F2933;
+  --t-accent: #3575A2;
+  --t-accent2: #CF6A00;
+  --t-muted: #F3EEE6;
+  --t-mutedText: #6B6F76;
+  --t-border: rgba(31,41,51,0.12);
+
+  --t-success: #276124;
+  --t-danger: #B0302F;
+  --t-highlight: #EB8F2C;
+  --t-brandPop: #B0367F;
+
+  --t-codeBg: rgba(31,41,51,0.06);
+  --t-codeBorder: rgba(31,41,51,0.16);
+
+  --t-link: #3575A2;
+  --t-linkHover: #2C648B;
+
+  --t-textureOpacity: 0.03;
+}

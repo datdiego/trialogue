@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Settings, Moon, Sun, Wifi, WifiOff, Loader2, MessageSquare, Users, Github, Coffee } from 'lucide-react';
+import { Send, Settings, Wifi, WifiOff, Loader2, MessageSquare, Users, Github, Coffee } from 'lucide-react';
 import { api, type Message, type ChatStreamChunk } from '@/lib/api';
 import { storage } from '@/lib/storage';
 import ModelSelector from './ModelSelector';
@@ -38,7 +38,6 @@ export default function ChatInterface() {
   const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('parallel');
   const [followUpTarget, setFollowUpTarget] = useState<string | null>(null); // Model to send follow-up to
   const [demoModels, setDemoModels] = useState<Record<string, boolean>>({}); // Track which models are using demo keys
@@ -50,18 +49,6 @@ export default function ChatInterface() {
     if (savedModels.length > 0) {
       setSelectedModels(savedModels);
     }
-
-    // Load dark mode preference
-    const savedDarkMode = storage.getDarkMode();
-    if (savedDarkMode !== null) {
-      setDarkMode(savedDarkMode);
-      document.documentElement.classList.toggle('dark', savedDarkMode);
-    } else {
-      // Use system preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setDarkMode(prefersDark);
-      document.documentElement.classList.toggle('dark', prefersDark);
-    }
   }, []);
 
   useEffect(() => {
@@ -71,13 +58,6 @@ export default function ChatInterface() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [trialogueMessages, currentResponses]);
-
-  const toggleDarkMode = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    storage.setDarkMode(newMode);
-    document.documentElement.classList.toggle('dark', newMode);
-  };
 
   const handleSend = async () => {
     if (!input.trim() || selectedModels.length === 0 || isStreaming) return;
@@ -205,10 +185,6 @@ export default function ChatInterface() {
     }
   };
 
-  const getModelName = (index: number) => {
-    return selectedModels[index] || `Model ${index + 1}`;
-  };
-
   // Get messages for a specific model in parallel view
   const getMessagesForModel = (model: string): TrialogueMessage[] => {
     return trialogueMessages.filter(
@@ -216,57 +192,37 @@ export default function ChatInterface() {
     );
   };
 
-  // Get the last user message
-  const getLastUserMessage = (): TrialogueMessage | null => {
-    for (let i = trialogueMessages.length - 1; i >= 0; i--) {
-      if (trialogueMessages[i].role === 'user') {
-        return trialogueMessages[i];
-      }
-    }
-    return null;
-  };
-
-  // Get assistant responses for the last user message
-  const getLastResponses = (): TrialogueMessage[] => {
-    const lastUserMsg = getLastUserMessage();
-    if (!lastUserMsg) return [];
-
-    return trialogueMessages.filter(
-      msg => msg.role === 'assistant' && msg.parentId === lastUserMsg.id
-    );
-  };
-
   return (
-    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="h-screen flex flex-col" style={{ background: 'var(--background)', color: 'var(--foreground)' }}>
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+      <header className="border-b px-6 py-4" style={{ background: 'var(--background)', borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
               Trialogue
             </h1>
             <div className="flex items-center gap-2">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm" style={{ color: 'var(--muted-text)' }}>
                 Chat with multiple AI models simultaneously
               </p>
               {connectionState !== 'idle' && (
                 <div className="flex items-center gap-1 text-xs">
                   {connectionState === 'connecting' && (
                     <>
-                      <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
-                      <span className="text-blue-500">Connecting...</span>
+                      <Loader2 className="w-3 h-3 animate-spin" style={{ color: 'var(--accent)' }} />
+                      <span style={{ color: 'var(--accent)' }}>Connecting...</span>
                     </>
                   )}
                   {connectionState === 'streaming' && (
                     <>
-                      <Wifi className="w-3 h-3 text-green-500" />
-                      <span className="text-green-500">Streaming</span>
+                      <Wifi className="w-3 h-3" style={{ color: 'var(--t-success)' }} />
+                      <span style={{ color: 'var(--t-success)' }}>Streaming</span>
                     </>
                   )}
                   {connectionState === 'error' && (
                     <>
-                      <WifiOff className="w-3 h-3 text-red-500" />
-                      <span className="text-red-500" title={errorMessage}>
+                      <WifiOff className="w-3 h-3" style={{ color: 'var(--t-danger)' }} />
+                      <span style={{ color: 'var(--t-danger)' }} title={errorMessage}>
                         Connection Error
                       </span>
                     </>
@@ -281,10 +237,13 @@ export default function ChatInterface() {
               href="https://ko-fi.com/datdiego"
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="p-2 rounded-lg transition-colors"
+              style={{ color: 'var(--muted-text)' }}
               title="Support on Ko-fi"
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <Coffee className="w-5 h-5 text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400" />
+              <Coffee className="w-5 h-5" />
             </a>
 
             {/* GitHub Repository Link */}
@@ -292,30 +251,25 @@ export default function ChatInterface() {
               href="https://github.com/datdiego/trialogue"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors text-sm"
+              style={{ color: 'var(--muted-text)' }}
               title="Star on GitHub"
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <Github className="w-4 h-4 text-gray-700 dark:text-gray-300" />
-              <span className="text-gray-700 dark:text-gray-300 hidden sm:inline">Star</span>
+              <Github className="w-4 h-4" />
+              <span className="hidden sm:inline">Star</span>
             </a>
 
             <button
-              onClick={toggleDarkMode}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-              title="Toggle dark mode"
-            >
-              {darkMode ? (
-                <Sun className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-              ) : (
-                <Moon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-              )}
-            </button>
-            <button
               onClick={() => setIsSettingsOpen(true)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              className="p-2 rounded-lg transition-colors"
+              style={{ color: 'var(--muted-text)' }}
               title="Settings"
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--muted)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <Settings className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+              <Settings className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -328,14 +282,15 @@ export default function ChatInterface() {
 
           {/* View Mode Selector */}
           {selectedModels.length > 0 && (
-            <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            <div className="flex gap-1 rounded-lg p-1" style={{ background: 'var(--muted)' }}>
               <button
                 onClick={() => setViewMode('parallel')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                className="px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                style={
                   viewMode === 'parallel'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-                }`}
+                    ? { background: 'var(--background)', color: 'var(--foreground)', boxShadow: '0 1px 3px var(--border)' }
+                    : { color: 'var(--muted-text)' }
+                }
                 title="Parallel chat view"
               >
                 <MessageSquare className="w-4 h-4 inline mr-1" />
@@ -343,11 +298,12 @@ export default function ChatInterface() {
               </button>
               <button
                 onClick={() => setViewMode('debate')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                className="px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                style={
                   viewMode === 'debate'
-                    ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-                }`}
+                    ? { background: 'var(--background)', color: 'var(--foreground)', boxShadow: '0 1px 3px var(--border)' }
+                    : { color: 'var(--muted-text)' }
+                }
                 title="Multi-round debate mode"
               >
                 <Users className="w-4 h-4 inline mr-1" />
@@ -361,7 +317,7 @@ export default function ChatInterface() {
       {/* Chat Area */}
       <div className="flex-1 overflow-hidden">
         {selectedModels.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-gray-500 dark:text-gray-400">
+          <div className="h-full flex items-center justify-center" style={{ color: 'var(--muted-text)' }}>
             <div className="text-center">
               <p className="text-lg mb-2">Select up to 3 models to start chatting</p>
               <p className="text-sm">Configure your API keys in Settings</p>
@@ -371,7 +327,6 @@ export default function ChatInterface() {
           // Debate View - Multi-round debate with independent answers, review, and consensus
           <DebateView
             selectedModels={selectedModels}
-            darkMode={darkMode}
           />
         ) : (
           // Parallel View - Each model in its own column
@@ -379,13 +334,20 @@ export default function ChatInterface() {
             {selectedModels.map((model) => (
               <div
                 key={model}
-                className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex flex-col"
+                className="rounded-lg border flex flex-col"
+                style={{ background: 'var(--background)', borderColor: 'var(--border)' }}
               >
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 font-medium text-gray-900 dark:text-gray-100 flex items-center justify-between">
+                <div
+                  className="px-4 py-3 border-b font-medium flex items-center justify-between"
+                  style={{ background: 'var(--muted)', borderColor: 'var(--border)', color: 'var(--foreground)' }}
+                >
                   <div className="flex items-center gap-2">
                     <span>{model}</span>
                     {demoModels[model] && (
-                      <span className="px-1.5 py-0.5 bg-orange-500 text-white text-xs rounded uppercase font-semibold">
+                      <span
+                        className="px-1.5 py-0.5 text-white text-xs rounded uppercase font-semibold"
+                        style={{ background: 'var(--t-highlight)' }}
+                      >
                         DEMO
                       </span>
                     )}
@@ -393,11 +355,12 @@ export default function ChatInterface() {
                   {!isStreaming && (
                     <button
                       onClick={() => setFollowUpTarget(model)}
-                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                      className="text-xs px-2 py-1 rounded transition-colors"
+                      style={
                         followUpTarget === model
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500'
-                      }`}
+                          ? { background: 'var(--accent)', color: 'var(--background)' }
+                          : { background: 'var(--muted)', color: 'var(--muted-text)', border: '1px solid var(--border)' }
+                      }
                       title="Ask follow-up to this model only"
                     >
                       {followUpTarget === model ? 'Follow-up active' : 'Follow-up'}
@@ -408,11 +371,12 @@ export default function ChatInterface() {
                   {getMessagesForModel(model).map((msg) => (
                     <div
                       key={msg.id}
-                      className={`${
+                      className="rounded-lg p-3 text-sm"
+                      style={
                         msg.role === 'user'
-                          ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100'
-                      } rounded-lg p-3 text-sm`}
+                          ? { background: 'color-mix(in srgb, var(--accent) 15%, var(--background))', color: 'var(--foreground)' }
+                          : { background: 'var(--muted)', color: 'var(--foreground)' }
+                      }
                     >
                       {msg.role === 'user' ? (
                         <span className="whitespace-pre-wrap">{msg.content}</span>
@@ -423,7 +387,7 @@ export default function ChatInterface() {
                   ))}
 
                   {isStreaming && currentResponses[model] && (
-                    <div className="bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg p-3 text-sm">
+                    <div className="rounded-lg p-3 text-sm" style={{ background: 'var(--muted)', color: 'var(--foreground)' }}>
                       <Markdown content={currentResponses[model]} />
                       <span className="animate-pulse">▋</span>
                     </div>
@@ -437,19 +401,23 @@ export default function ChatInterface() {
       </div>
 
       {/* Input Area */}
-      <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+      <div className="border-t px-6 py-4" style={{ background: 'var(--background)', borderColor: 'var(--border)' }}>
         {/* Follow-up indicator */}
         {followUpTarget && (
-          <div className="mb-3 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-2">
+          <div
+            className="mb-3 flex items-center justify-between rounded-lg px-4 py-2 border"
+            style={{ background: 'color-mix(in srgb, var(--accent) 10%, var(--background))', borderColor: 'color-mix(in srgb, var(--accent) 30%, var(--background))' }}
+          >
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-sm text-blue-900 dark:text-blue-100">
+              <MessageSquare className="w-4 h-4" style={{ color: 'var(--accent)' }} />
+              <span className="text-sm" style={{ color: 'var(--foreground)' }}>
                 Sending follow-up to: <strong>{followUpTarget}</strong>
               </span>
             </div>
             <button
               onClick={() => setFollowUpTarget(null)}
-              className="text-xs px-2 py-1 bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100 rounded hover:bg-blue-300 dark:hover:bg-blue-700 transition-colors"
+              className="text-xs px-2 py-1 rounded transition-colors"
+              style={{ background: 'color-mix(in srgb, var(--accent) 20%, var(--background))', color: 'var(--foreground)' }}
             >
               Cancel
             </button>
@@ -469,13 +437,15 @@ export default function ChatInterface() {
                 : "Select models first..."
             }
             disabled={selectedModels.length === 0 || isStreaming}
-            className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 border rounded-lg resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'var(--background)', color: 'var(--foreground)', borderColor: 'var(--border)' }}
             rows={3}
           />
           <button
             onClick={handleSend}
             disabled={!input.trim() || selectedModels.length === 0 || isStreaming}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium transition-colors"
+            style={{ background: 'var(--accent)', color: 'var(--background)' }}
           >
             <Send className="w-5 h-5" />
             {followUpTarget ? 'Follow-up' : 'Send'}
