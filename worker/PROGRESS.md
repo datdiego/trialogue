@@ -996,3 +996,30 @@ Next commit will include:
 - Deployment configuration (Railway + Vercel)
 - Comprehensive deployment documentation
 - Milestone 6 completion
+
+## Session Update: 2026-02-17 (Unit 1 - Priority 1: Debate Endpoint Tests)
+
+### Files changed
+- /home/dalducin/projects/trialogue/backend/tests/test_debate_endpoint.py
+
+### Decisions made
+- Implemented `/api/debate` unit tests with mocked `LLMService.chat_stream` for deterministic, provider-independent coverage.
+  Rationale: validates debate orchestration logic (round progression, SSE format, error handling) without live LLM calls.
+- Added tests for demo-limit rejection and BYOK path bypassing demo-limit checks.
+  Rationale: debate mode has distinct billing/rate implications and must avoid false throttling on BYOK requests.
+- Used stdlib `unittest` style instead of `pytest`.
+  Rationale: no test dependencies are currently installable in this environment.
+
+### Open questions
+- OPEN: Product docs call for debate-specific demo/BYOK per-minute limits, but implementation currently applies `30/minute` route limiter plus demo session-call budgeting. Should QA assert intended policy or current implementation?
+- ASSUMED: Current endpoint implementation is source of truth for executable tests.
+
+### Blockers
+- Cannot write to `/home/dalducin/orchestrator/workers/trialogue/PROGRESS.md` from this sandbox (`Permission denied`); updates are being written to `/home/dalducin/projects/trialogue/worker/PROGRESS.md` instead.
+- Cannot install backend dependencies due restricted network/DNS (`pip install -r requirements.txt` fails), so tests cannot be executed yet.
+
+### Ordered next steps
+1. Add Priority 2 demo-system tests.
+2. Add Priority 3 integration tests that are backend-verifiable.
+3. Add Priority 4 edge-case tests (2 vs 3 models, timeout, concurrent sessions).
+4. Execute test suites once dependencies are available.
