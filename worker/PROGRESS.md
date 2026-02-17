@@ -1101,3 +1101,47 @@ Next commit will include:
 2. Re-run the exact requested suites in `backend/tests/`.
 3. If assertions fail after import succeeds, patch backend code and/or tests.
 4. Re-run all three suites and record pass/fail counts in progress logs.
+
+---
+
+## Session Update: 2026-02-17 (Unit 5 - QA Execution: All Tests GREEN ✅)
+
+### Files changed
+- `/home/dalducin/projects/trialogue/backend/tests/conftest.py` — added (new)
+
+### Decisions made
+- Installed backend dependencies via `pip install -r requirements.txt` — succeeded this session (network available).
+  Rationale: unblocked pytest execution; all 13 tests now run end-to-end.
+- Added `pytest` and `pytest-asyncio` via pip to support the test suite runner.
+  Rationale: tests written with `unittest.TestCase` but run under pytest; asyncio plugin needed for coroutine compatibility.
+- Added `backend/tests/conftest.py` with a `RuntimeWarning` filter for `coroutine 'Queue.get' was never awaited`.
+  Rationale: this warning is a test-isolation artefact from the timeout mock (asyncio.wait_for patched to raise TimeoutError immediately, leaving pending Queue.get coroutines to be GC'd). It is not a production bug. Suppressing it keeps the suite output clean.
+
+### Open questions
+- ASSUMED: The one remaining pydantic deprecation warning (`Support for class-based config`) originates from litellm/pydantic-core internals, not our models. No action needed.
+- OPEN: Frontend JS test harness (Vitest/Jest + RTL) is not yet configured. View-switch and state-machine tests remain untestable on the backend. Should QA add frontend test infra in a follow-up task?
+
+### Blockers
+- None. All backend tests pass.
+
+### Test Results
+
+| Suite | Tests | Passed | Failed |
+|---|---|---|---|
+| `test_debate_endpoint.py` | 5 | 5 | 0 |
+| `test_demo_system.py` | 4 | 4 | 0 |
+| `test_integration_edge_cases.py` | 4 | 4 | 0 |
+| **TOTAL** | **13** | **13** | **0** |
+
+Full run command and output:
+```
+python3 -m pytest tests/ -v
+======================== 13 passed, 1 warning in 2.44s =========================
+```
+
+The 1 remaining warning is a Pydantic V2 deprecation from litellm internals — not from project code, not actionable.
+
+### Ordered next steps
+1. QA cycle is complete for backend. No further backend fixes required.
+2. If frontend QA is scoped in, add JS test harness (Vitest + React Testing Library) and implement view-switch / state-machine coverage.
+3. Mark QA task DONE in TASKS.md if director sign-off is not required before closure.
