@@ -8,13 +8,14 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.models.schemas import ChatStreamChunk
 from app.routers import chat
-from app.config import _demo_call_tracker, check_demo_limit, record_demo_calls
+from app.config import _demo_call_tracker, _request_rate_tracker, check_demo_limit, record_demo_calls
 
 
 class IntegrationAndEdgeCaseTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = TestClient(app)
         _demo_call_tracker.clear()
+        _request_rate_tracker.clear()
         chat.DEMO_KEYS.clear()
 
     def _parse_sse(self, raw_text: str):
@@ -109,6 +110,23 @@ class IntegrationAndEdgeCaseTests(unittest.TestCase):
         allowed_ip2, remaining_ip2 = check_demo_limit(ip2, 1)
         self.assertTrue(allowed_ip2)
         self.assertEqual(remaining_ip2, 5)
+
+    def test_validate_key_rejects_control_characters(self):
+        payload = {
+            "provider": "groq",
+            "key": "bad\nkey",
+        }
+        response = self.client.post("/api/validate-key", json=payload)
+        self.assertEqual(response.status_code, 422)
+
+    def test_chat_rejects_invalid_model_identifier_format(self):
+        payload = {
+            "messages": [{"role": "user", "content": "hello"}],
+            "models": ["gpt-4o-mini<script>"],
+            "stream": True,
+        }
+        response = self.client.post("/api/chat", json=payload)
+        self.assertEqual(response.status_code, 422)
 
 
 if __name__ == "__main__":

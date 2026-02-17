@@ -147,32 +147,32 @@ class LLMService:
             # Send completion signal
             yield ChatStreamChunk(model=model, content="", done=True)
 
-        except litellm.exceptions.AuthenticationError as e:
-            logger.warning(f"Authentication error for {model}: {str(e)}")
+        except litellm.exceptions.AuthenticationError:
+            logger.warning("Authentication error for model %s", model)
             yield ChatStreamChunk(
                 model=model,
                 content="",
                 done=True,
                 error=SAFE_ERROR_MESSAGES["auth"],
             )
-        except litellm.exceptions.RateLimitError as e:
-            logger.warning(f"Rate limit error for {model}: {str(e)}")
+        except litellm.exceptions.RateLimitError:
+            logger.warning("Rate limit error for model %s", model)
             yield ChatStreamChunk(
                 model=model,
                 content="",
                 done=True,
                 error=SAFE_ERROR_MESSAGES["rate_limit"],
             )
-        except litellm.exceptions.BadRequestError as e:
-            logger.error(f"Bad request for {model}: {str(e)}")
+        except litellm.exceptions.BadRequestError:
+            logger.error("Bad request for model %s", model)
             yield ChatStreamChunk(
                 model=model,
                 content="",
                 done=True,
                 error=SAFE_ERROR_MESSAGES["bad_request"],
             )
-        except Exception as e:
-            logger.error(f"Unexpected error for {model}: {str(e)}", exc_info=True)
+        except Exception:
+            logger.error("Unexpected error for model %s", model, exc_info=True)
             yield ChatStreamChunk(
                 model=model,
                 content="",
@@ -212,13 +212,13 @@ class LLMService:
             # If we got here, the key is valid
             return True, test_models, None
 
-        except litellm.exceptions.AuthenticationError as e:
-            logger.warning(f"Key validation failed for {provider}: {str(e)}")
+        except litellm.exceptions.AuthenticationError:
+            logger.warning("Key validation authentication failure for provider %s", provider)
             return False, None, "Invalid API key"
-        except litellm.exceptions.RateLimitError as e:
-            logger.warning(f"Rate limit during validation for {provider}: {str(e)}")
+        except litellm.exceptions.RateLimitError:
+            logger.warning("Rate limit during key validation for provider %s", provider)
             # Rate limit means the key is valid but quota exceeded
             return True, test_models, "Rate limit exceeded (but key is valid)"
-        except Exception as e:
-            logger.error(f"Unexpected error during key validation for {provider}: {str(e)}", exc_info=True)
+        except Exception:
+            logger.error("Unexpected error during key validation for provider %s", provider, exc_info=True)
             return False, None, "Validation failed. Please try again."

@@ -6,7 +6,6 @@ Handles chat and key validation endpoints
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from typing import Optional
-import json
 import asyncio
 
 from app.models.schemas import (
@@ -19,17 +18,27 @@ from app.models.schemas import (
 )
 from app.services.llm import LLMService
 from app.config import (
-    DEMO_KEYS, DEMO_MODELS, get_demo_key, is_demo_model,
-    check_demo_limit, record_demo_calls,
+    DEMO_KEYS, DEMO_MODELS, get_demo_key,
+    check_demo_limit, record_demo_calls, check_request_rate_limit, record_request,
 )
 
 router = APIRouter()
 
-# Get limiter from main app - will be set via dependency
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+MAX_API_KEY_LENGTH = 256
 
-limiter = Limiter(key_func=get_remote_address)
+
+def sanitize_api_key_header(value: Optional[str], header_name: str) -> Optional[str]:
+    """Reject malformed API key headers to prevent header injection."""
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if not trimmed:
+        return None
+    if len(trimmed) > MAX_API_KEY_LENGTH:
+        raise HTTPException(status_code=400, detail=f"{header_name} exceeds maximum length")
+    if any(ch in trimmed for ch in ("\r", "\n", "\x00")):
+        raise HTTPException(status_code=400, detail=f"{header_name} contains invalid characters")
+    return trimmed
 
 
 @router.get("/demo-models")
@@ -51,7 +60,6 @@ async def get_demo_models(request: Request):
 
 
 @router.post("/chat")
-@limiter.limit("30/minute")
 async def chat(
     chat_request: ChatRequest,
     request: Request,
@@ -74,10 +82,10 @@ async def chat(
     """
     # Collect user-provided API keys
     user_api_keys = {
-        "openai": x_openai_key,
-        "anthropic": x_anthropic_key,
-        "google": x_google_key,
-        "groq": x_groq_key,
+        "openai": sanitize_api_key_header(x_openai_key, "X-OpenAI-Key"),
+        "anthropic": sanitize_api_key_header(x_anthropic_key, "X-Anthropic-Key"),
+        "google": sanitize_api_key_header(x_google_key, "X-Google-Key"),
+        "groq": sanitize_api_key_header(x_groq_key, "X-Groq-Key"),
     }
 
     # Track which models are using demo keys
@@ -98,10 +106,21 @@ async def chat(
                 demo_models_used.add(model)
 
     is_demo_request = len(demo_models_used) > 0
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Enforce per-minute request rate limits by request type.
+    allowed_rate, _, retry_after = check_request_rate_limit(client_ip, is_demo_request)
+    if not allowed_rate:
+        limit_label = "3/minute (demo)" if is_demo_request else "10/minute (BYOK)"
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded ({limit_label}). Please retry later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+    record_request(client_ip, is_demo_request)
 
     # Enforce demo session call limit
     if is_demo_request:
-        client_ip = request.client.host if request.client else "unknown"
         num_calls = len(chat_request.models)
         allowed, remaining = check_demo_limit(client_ip, num_calls)
         if not allowed:
@@ -189,12 +208,13 @@ async def chat(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "X-Content-Type-Options": "nosniff",
+            "X-Accel-Buffering": "no",
         },
     )
 
 
 @router.post("/validate-key", response_model=ValidateKeyResponse)
-@limiter.limit("5/minute")  # Stricter limit for validation - 5 requests per minute per IP
 async def validate_key(http_request: Request, request: ValidateKeyRequest):
     """
     Validate an API key and return available models
@@ -203,7 +223,7 @@ async def validate_key(http_request: Request, request: ValidateKeyRequest):
     """
     valid, models, error = await LLMService.validate_api_key(
         provider=request.provider,
-        api_key=request.key,
+        api_key=request.key.strip(),
     )
 
     return ValidateKeyResponse(
@@ -214,7 +234,6 @@ async def validate_key(http_request: Request, request: ValidateKeyRequest):
 
 
 @router.post("/debate")
-@limiter.limit("30/minute")
 async def debate(
     debate_request: DebateRequest,
     request: Request,
@@ -232,10 +251,10 @@ async def debate(
     """
     # Collect user-provided API keys
     user_api_keys = {
-        "openai": x_openai_key,
-        "anthropic": x_anthropic_key,
-        "google": x_google_key,
-        "groq": x_groq_key,
+        "openai": sanitize_api_key_header(x_openai_key, "X-OpenAI-Key"),
+        "anthropic": sanitize_api_key_header(x_anthropic_key, "X-Anthropic-Key"),
+        "google": sanitize_api_key_header(x_google_key, "X-Google-Key"),
+        "groq": sanitize_api_key_header(x_groq_key, "X-Groq-Key"),
     }
 
     # Track which models are using demo keys
@@ -252,10 +271,23 @@ async def debate(
                 api_keys[provider] = demo_key
                 demo_models_used.add(model)
 
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Enforce per-minute request rate limits by request type.
+    is_demo_request = len(demo_models_used) > 0
+    allowed_rate, _, retry_after = check_request_rate_limit(client_ip, is_demo_request)
+    if not allowed_rate:
+        limit_label = "3/minute (demo)" if is_demo_request else "10/minute (BYOK)"
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded ({limit_label}). Please retry later.",
+            headers={"Retry-After": str(retry_after)},
+        )
+    record_request(client_ip, is_demo_request)
+
     # Enforce demo session call limit
     # Debate uses 3 rounds × N models = 3N API calls
-    if len(demo_models_used) > 0:
-        client_ip = request.client.host if request.client else "unknown"
+    if is_demo_request:
         num_calls = len(debate_request.models) * 3  # 3 rounds
         allowed, remaining = check_demo_limit(client_ip, num_calls)
         if not allowed:
@@ -547,5 +579,7 @@ Based on this discussion, provide:
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "X-Content-Type-Options": "nosniff",
+            "X-Accel-Buffering": "no",
         },
     )

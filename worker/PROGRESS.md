@@ -1145,3 +1145,60 @@ The 1 remaining warning is a Pydantic V2 deprecation from litellm internals — 
 1. QA cycle is complete for backend. No further backend fixes required.
 2. If frontend QA is scoped in, add JS test harness (Vitest + React Testing Library) and implement view-switch / state-machine coverage.
 3. Mark QA task DONE in TASKS.md if director sign-off is not required before closure.
+
+## Session Update: 2026-02-17 (Unit 8 - CYBER-1..4 Security Audit + Hardening)
+
+### Files changed
+- `/home/dalducin/projects/trialogue/backend/app/config.py`
+- `/home/dalducin/projects/trialogue/backend/app/main.py`
+- `/home/dalducin/projects/trialogue/backend/app/models/schemas.py`
+- `/home/dalducin/projects/trialogue/backend/app/routers/chat.py`
+- `/home/dalducin/projects/trialogue/backend/app/services/llm.py`
+- `/home/dalducin/projects/trialogue/backend/Dockerfile`
+- `/home/dalducin/projects/trialogue/backend/.dockerignore` (new)
+- `/home/dalducin/projects/trialogue/frontend/components/Markdown.tsx`
+- `/home/dalducin/projects/trialogue/frontend/lib/storage.ts`
+- `/home/dalducin/projects/trialogue/frontend/next.config.ts`
+- `/home/dalducin/projects/trialogue/.gitignore`
+- `/home/dalducin/projects/trialogue/backend/tests/test_demo_system.py`
+- `/home/dalducin/projects/trialogue/backend/tests/test_debate_endpoint.py`
+- `/home/dalducin/projects/trialogue/backend/tests/test_integration_edge_cases.py`
+- `/home/dalducin/projects/trialogue/worker/PROGRESS.md`
+
+### Decisions made
+- Implemented explicit per-IP request limits in backend code: demo `3/min`, BYOK `10/min`, with `Retry-After`.
+  Rationale: enforce policy directly and avoid relying on generic static endpoint limits.
+- Kept demo session-call budget logic and layered minute-based policy on top.
+  Rationale: preserve abuse controls already in project while meeting CYBER requirement.
+- Added strict model identifier validation and API-key control-character rejection.
+  Rationale: reduce injection surface and malformed input propagation.
+- Removed potentially sensitive exception text from backend logs.
+  Rationale: prevent accidental key/provider detail leakage in logs.
+- Tightened backend CORS defaults to explicit origins; preview regex now opt-in via env (`CORS_ORIGIN_REGEX`).
+  Rationale: avoid broad implicit trust for wildcard preview-like origins.
+- Hardened markdown rendering (`skipHtml`, explicit allowlist, safe external link attrs).
+  Rationale: reduce XSS risk from model/user markdown content.
+- Migrated frontend API key persistence from `localStorage` to `sessionStorage` (+ legacy key cleanup).
+  Rationale: no secrets in persistent browser storage.
+- Added backend container hardening (`non-root` user, `.dockerignore`, python runtime env flags).
+  Rationale: reduce container attack surface and secret/context leakage into images.
+- Expanded `.gitignore` env-file coverage (`.env.*`, keep `.env.example`).
+  Rationale: prevent accidental secret commits from variant env files.
+
+### Open questions
+- OPEN: `pip audit` could not run because `pip_audit` is not installed in `.venv` and dependency installation is disallowed by task constraints.
+- OPEN: `npm audit` failed due DNS/network restriction (`EAI_AGAIN registry.npmjs.org`) in this execution environment.
+- ASSUMED: `sessionStorage` is acceptable for BYOK UX/security tradeoff versus full in-memory-only key handling.
+
+### Blockers
+- Backend test execution is currently blocked in this runner: `fastapi.testclient.TestClient` requests hang even for a minimal local FastAPI app (`/health`) in-process, preventing reliable pytest completion in-session.
+- Frontend production build cannot complete in this sandbox due Turbopack process/port restrictions (`Operation not permitted` while creating subprocess/binding port).
+
+### Ordered next steps
+1. Re-run backend test suite on a non-restricted runner: `.venv/bin/pytest backend/tests/ -q`.
+2. Re-run dependency CVE audits in network-enabled environment: `.venv/bin/python -m pip_audit` and `cd frontend && npm audit --audit-level=moderate`.
+3. Validate frontend runtime behavior manually for API-key session persistence and markdown rendering.
+4. If audits/tests reveal additional issues, patch and checkpoint with a follow-up commit.
+
+### Addendum
+- Blocker: direct write to `/home/dalducin/orchestrator/workers/trialogue/PROGRESS.md` failed with `Permission denied` in this sandbox. Progress is mirrored here in `/home/dalducin/projects/trialogue/worker/PROGRESS.md`.

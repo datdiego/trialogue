@@ -7,13 +7,14 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.models.schemas import ChatStreamChunk
 from app.routers import chat
-from app.config import _demo_call_tracker
+from app.config import _demo_call_tracker, _request_rate_tracker
 
 
 class DemoSystemTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = TestClient(app)
         _demo_call_tracker.clear()
+        _request_rate_tracker.clear()
         chat.DEMO_KEYS.clear()
 
     def _parse_sse(self, raw_text: str):
@@ -43,7 +44,7 @@ class DemoSystemTests(unittest.TestCase):
             self.assertIn("id", model)
             self.assertNotIn("key", model)
 
-    def test_demo_mode_rate_limit_is_5_calls_per_session_ip(self):
+    def test_demo_mode_rate_limit_is_3_requests_per_minute_per_ip(self):
         chat.DEMO_KEYS.update({"groq": "groq-demo"})
 
         async def fake_chat_stream(model, messages, api_keys, temperature=0.7, max_tokens=1000):
@@ -57,13 +58,13 @@ class DemoSystemTests(unittest.TestCase):
         }
 
         with patch("app.routers.chat.LLMService.chat_stream", side_effect=fake_chat_stream):
-            for _ in range(5):
+            for _ in range(3):
                 ok_response = self.client.post("/api/chat", json=payload)
                 self.assertEqual(ok_response.status_code, 200)
 
             blocked_response = self.client.post("/api/chat", json=payload)
             self.assertEqual(blocked_response.status_code, 429)
-            self.assertIn("Demo session limit reached", blocked_response.text)
+            self.assertIn("Rate limit exceeded", blocked_response.text)
 
     def test_byok_requests_do_not_consume_demo_call_budget(self):
         chat.DEMO_KEYS.update({"groq": "groq-demo"})

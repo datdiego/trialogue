@@ -1,10 +1,12 @@
 /**
  * LocalStorage Helpers
- * Manages API key storage securely in the browser
+ * Manages browser storage for app preferences.
+ * API keys are kept in sessionStorage only (never localStorage).
  */
 
 const STORAGE_KEYS = {
-  API_KEYS: 'trialogue_api_keys',
+  API_KEYS: 'trialogue_api_keys_session',
+  LEGACY_API_KEYS: 'trialogue_api_keys',
   SELECTED_MODELS: 'trialogue_selected_models',
   DARK_MODE: 'trialogue_dark_mode',
 } as const;
@@ -12,8 +14,11 @@ const STORAGE_KEYS = {
 export interface ApiKeys {
   openai?: string;
   anthropic?: string;
+  google?: string;
   groq?: string;
 }
+
+let inMemoryApiKeys: ApiKeys = {};
 
 export const storage = {
   /**
@@ -22,10 +27,26 @@ export const storage = {
   getApiKeys(): ApiKeys {
     if (typeof window === 'undefined') return {};
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.API_KEYS);
-      return stored ? JSON.parse(stored) : {};
+      const stored = sessionStorage.getItem(STORAGE_KEYS.API_KEYS);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        inMemoryApiKeys = parsed;
+        return parsed;
+      }
+
+      // Cleanup legacy insecure localStorage keys if present.
+      const legacy = localStorage.getItem(STORAGE_KEYS.LEGACY_API_KEYS);
+      if (legacy) {
+        const parsedLegacy = JSON.parse(legacy);
+        localStorage.removeItem(STORAGE_KEYS.LEGACY_API_KEYS);
+        inMemoryApiKeys = parsedLegacy;
+        sessionStorage.setItem(STORAGE_KEYS.API_KEYS, JSON.stringify(parsedLegacy));
+        return parsedLegacy;
+      }
+
+      return inMemoryApiKeys;
     } catch {
-      return {};
+      return inMemoryApiKeys;
     }
   },
 
@@ -35,7 +56,9 @@ export const storage = {
   setApiKeys(keys: ApiKeys): void {
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem(STORAGE_KEYS.API_KEYS, JSON.stringify(keys));
+      inMemoryApiKeys = keys;
+      sessionStorage.setItem(STORAGE_KEYS.API_KEYS, JSON.stringify(keys));
+      localStorage.removeItem(STORAGE_KEYS.LEGACY_API_KEYS);
     } catch (error) {
       console.error('Failed to save API keys:', error);
     }
@@ -71,7 +94,9 @@ export const storage = {
    */
   clearApiKeys(): void {
     if (typeof window === 'undefined') return;
-    localStorage.removeItem(STORAGE_KEYS.API_KEYS);
+    inMemoryApiKeys = {};
+    sessionStorage.removeItem(STORAGE_KEYS.API_KEYS);
+    localStorage.removeItem(STORAGE_KEYS.LEGACY_API_KEYS);
   },
 
   /**

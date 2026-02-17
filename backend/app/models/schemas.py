@@ -4,6 +4,10 @@ Pydantic Models for Request/Response Schemas
 
 from typing import List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
+import re
+
+
+MODEL_ID_PATTERN = re.compile(r"^[a-zA-Z0-9._/-]{1,120}$")
 
 
 class Message(BaseModel):
@@ -27,6 +31,8 @@ class ChatRequest(BaseModel):
         from app.services.llm import PROVIDER_PREFIXES
 
         for model in v:
+            if not MODEL_ID_PATTERN.fullmatch(model):
+                raise ValueError(f"Invalid model ID format: {model}")
             valid = any(
                 model.lower().startswith(prefix.lower())
                 for prefixes in PROVIDER_PREFIXES.values()
@@ -49,7 +55,17 @@ class ChatStreamChunk(BaseModel):
 class ValidateKeyRequest(BaseModel):
     """Request schema for /api/validate-key endpoint"""
     provider: Literal["openai", "anthropic", "google", "groq"]
-    key: str
+    key: str = Field(..., min_length=1, max_length=256)
+
+    @field_validator("key")
+    @classmethod
+    def validate_key(cls, v: str):
+        key = v.strip()
+        if not key:
+            raise ValueError("API key cannot be empty")
+        if any(ch in key for ch in ("\r", "\n", "\x00")):
+            raise ValueError("API key contains invalid characters")
+        return key
 
 
 class ValidateKeyResponse(BaseModel):
@@ -73,6 +89,8 @@ class DebateRequest(BaseModel):
         from app.services.llm import PROVIDER_PREFIXES
 
         for model in v:
+            if not MODEL_ID_PATTERN.fullmatch(model):
+                raise ValueError(f"Invalid model ID format: {model}")
             valid = any(
                 model.lower().startswith(prefix.lower())
                 for prefixes in PROVIDER_PREFIXES.values()

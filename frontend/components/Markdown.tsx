@@ -13,7 +13,21 @@ export default function Markdown({ content, className = '' }: MarkdownProps) {
     <div className={`prose prose-sm dark:prose-invert max-w-none ${className}`}>
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
+      skipHtml={true}
+      allowedElements={[
+        'p', 'strong', 'em', 'del', 'a', 'code', 'pre', 'blockquote',
+        'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+      ]}
       components={{
+        a: ({ href, children }) => (
+          <a
+            href={href}
+            target={href?.startsWith('http') ? '_blank' : undefined}
+            rel={href?.startsWith('http') ? 'noopener noreferrer nofollow' : undefined}
+          >
+            {children}
+          </a>
+        ),
         // Keep code blocks compact
         pre: ({ children }) => (
           <pre className="bg-gray-800 dark:bg-gray-900 text-gray-100 rounded p-2 overflow-x-auto text-xs">

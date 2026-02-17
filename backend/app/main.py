@@ -5,10 +5,8 @@ Provides streaming chat endpoints for multiple LLM providers
 
 import os
 from fastapi import FastAPI
+from starlette.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from app.routers import chat
 
 app = FastAPI(
@@ -17,10 +15,14 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+def _parse_extra_cors_origins(raw: str) -> list[str]:
+    """Parse and validate CORS origins from environment."""
+    origins: list[str] = []
+    for candidate in [o.strip() for o in raw.split(",") if o.strip()]:
+        if candidate.startswith("http://") or candidate.startswith("https://"):
+            origins.append(candidate)
+    return origins
+
 
 # CORS configuration for frontend
 CORS_ORIGINS = [
@@ -32,12 +34,16 @@ CORS_ORIGINS = [
 # Add any extra origins from environment (comma-separated)
 extra_origins = os.getenv("CORS_ORIGINS", "")
 if extra_origins:
-    CORS_ORIGINS.extend([o.strip() for o in extra_origins.split(",") if o.strip()])
+    CORS_ORIGINS.extend(_parse_extra_cors_origins(extra_origins))
+
+cors_origin_regex = os.getenv("CORS_ORIGIN_REGEX")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_origin_regex=r"https://trialogue-.*\.vercel\.app",  # All Vercel preview deployments
+    # Production should prefer explicit allow_origins.
+    # If preview domains are needed, set CORS_ORIGIN_REGEX explicitly.
+    allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["POST", "GET", "OPTIONS"],
     allow_headers=[
@@ -48,6 +54,16 @@ app.add_middleware(
         "X-Groq-Key",
     ],
 )
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    """Set baseline security headers for all backend responses."""
+    response: Response = await call_next(request)
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    return response
 
 # Include routers
 app.include_router(chat.router, prefix="/api", tags=["chat"])

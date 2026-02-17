@@ -31,6 +31,12 @@ DEMO_SESSION_WINDOW = 3600  # 1 hour window per IP
 
 # In-memory tracker: {ip: [(timestamp, call_count), ...]}
 _demo_call_tracker: dict[str, list[float]] = defaultdict(list)
+_request_rate_tracker: dict[str, list[float]] = defaultdict(list)
+
+# Per-IP request rate limits
+DEMO_REQUESTS_PER_MINUTE = 3
+BYOK_REQUESTS_PER_MINUTE = 10
+REQUEST_RATE_WINDOW_SECONDS = 60
 
 
 def check_demo_limit(client_ip: str, num_calls: int = 1) -> tuple[bool, int]:
@@ -65,6 +71,39 @@ def record_demo_calls(client_ip: str, num_calls: int = 1):
     """Record demo API calls for rate tracking."""
     now = time.time()
     _demo_call_tracker[client_ip].extend([now] * num_calls)
+
+
+def check_request_rate_limit(client_ip: str, is_demo: bool) -> tuple[bool, int, int]:
+    """
+    Check per-IP request rate limits for demo and BYOK requests.
+
+    Returns:
+        (allowed, remaining, retry_after_seconds)
+    """
+    now = time.time()
+    cutoff = now - REQUEST_RATE_WINDOW_SECONDS
+    tracker_key = f"{client_ip}:{'demo' if is_demo else 'byok'}"
+
+    _request_rate_tracker[tracker_key] = [
+        t for t in _request_rate_tracker[tracker_key] if t > cutoff
+    ]
+
+    used = len(_request_rate_tracker[tracker_key])
+    limit = DEMO_REQUESTS_PER_MINUTE if is_demo else BYOK_REQUESTS_PER_MINUTE
+    remaining = max(limit - used, 0)
+
+    if used >= limit:
+        oldest = min(_request_rate_tracker[tracker_key]) if _request_rate_tracker[tracker_key] else now
+        retry_after = max(int((oldest + REQUEST_RATE_WINDOW_SECONDS) - now), 1)
+        return False, 0, retry_after
+
+    return True, remaining - 1, 0
+
+
+def record_request(client_ip: str, is_demo: bool):
+    """Record one request in the per-minute rate tracker."""
+    tracker_key = f"{client_ip}:{'demo' if is_demo else 'byok'}"
+    _request_rate_tracker[tracker_key].append(time.time())
 
 
 def get_demo_key(model: str) -> str | None:

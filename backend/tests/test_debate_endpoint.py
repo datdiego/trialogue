@@ -7,13 +7,14 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.models.schemas import ChatStreamChunk
 from app.routers import chat
-from app.config import _demo_call_tracker
+from app.config import _demo_call_tracker, _request_rate_tracker
 
 
 class DebateEndpointTests(unittest.TestCase):
     def setUp(self) -> None:
         self.client = TestClient(app)
         _demo_call_tracker.clear()
+        _request_rate_tracker.clear()
         chat.DEMO_KEYS.clear()
 
     def _parse_sse_events(self, raw_text: str):
