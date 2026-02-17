@@ -17,6 +17,9 @@ DEMO_KEYS = {
 DEMO_MODELS = {
     "groq/llama-3.3-70b-versatile": "groq",
     "groq/llama-3.1-8b-instant": "groq",
+    "groq/moonshotai/kimi-k2-instruct": "groq",
+    "groq/openai/gpt-oss-120b": "groq",
+    "groq/qwen/qwen3-32b": "groq",
 }
 
 # Demo session limits

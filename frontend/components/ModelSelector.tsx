@@ -19,13 +19,12 @@ const AVAILABLE_MODELS = [
   { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', provider: 'Anthropic' },
   { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', provider: 'Anthropic' },
 
-  // Google
-  { id: 'gemini/gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google' },
-  { id: 'gemini/gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google' },
-
   // Groq (free)
   { id: 'groq/llama-3.3-70b-versatile', name: 'Llama 3.3 70B', provider: 'Groq' },
-  { id: 'groq/mixtral-8x7b-32768', name: 'Mixtral 8x7B', provider: 'Groq' },
+  { id: 'groq/llama-3.1-8b-instant', name: 'Llama 3.1 8B', provider: 'Groq' },
+  { id: 'groq/moonshotai/kimi-k2-instruct', name: 'Kimi K2 Instruct', provider: 'Groq' },
+  { id: 'groq/openai/gpt-oss-120b', name: 'GPT-OSS 120B', provider: 'Groq' },
+  { id: 'groq/qwen/qwen3-32b', name: 'Qwen3 32B', provider: 'Groq' },
 ];
 
 export default function ModelSelector({ selectedModels, onChange }: ModelSelectorProps) {
