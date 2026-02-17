@@ -23,26 +23,23 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS configuration for frontend
-# Development origins
-CORS_ORIGINS_DEV = [
-    "http://localhost:3000",  # Next.js dev server
+CORS_ORIGINS = [
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://trialogue-dun.vercel.app",
 ]
 
-# Production origins from environment variable (comma-separated)
-CORS_ORIGINS_PROD = os.getenv("CORS_ORIGINS", "").split(",") if os.getenv("CORS_ORIGINS") else []
-
-# Determine if we're in debug mode
-DEBUG = os.getenv("DEBUG", "true").lower() == "true"
-
-# Use dev origins in debug mode, prod origins otherwise
-allowed_origins = CORS_ORIGINS_DEV if DEBUG else CORS_ORIGINS_PROD
+# Add any extra origins from environment (comma-separated)
+extra_origins = os.getenv("CORS_ORIGINS", "")
+if extra_origins:
+    CORS_ORIGINS.extend([o.strip() for o in extra_origins.split(",") if o.strip()])
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=CORS_ORIGINS,
+    allow_origin_regex=r"https://trialogue-.*\.vercel\.app",  # All Vercel preview deployments
     allow_credentials=True,
-    allow_methods=["POST", "GET"],  # Only needed methods
+    allow_methods=["POST", "GET", "OPTIONS"],
     allow_headers=[
         "Content-Type",
         "X-OpenAI-Key",
