@@ -1047,3 +1047,30 @@ Next commit will include:
 1. Add Priority 3 integration tests (parallel mode behavior and backend-integrated paths).
 2. Add Priority 4 edge-case tests (2/3 models, timeout path, concurrent session/IP isolation).
 3. Run `python3 -m unittest` suite when backend dependencies are available.
+
+## Session Update: 2026-02-17 (Unit 3 - Priorities 3/4: Integration + Edge-Case Tests)
+
+### Files changed
+- /home/dalducin/projects/trialogue/backend/tests/test_integration_edge_cases.py
+- /home/dalducin/projects/trialogue/backend/tests/__init__.py
+
+### Decisions made
+- Added backend integration coverage for `/api/chat` parallel streaming to ensure multi-model completion signals remain intact.
+  Rationale: validates core parallel-mode behavior after debate feature additions.
+- Added debate edge-case coverage for model-count boundaries (2 and 3 models), forced timeout path (`Stream timeout`), and session/IP isolation using demo call tracker functions.
+  Rationale: these are high-risk operational scenarios called out in QA priorities.
+- Ran static syntax validation with `python3 -m py_compile` across test files.
+  Rationale: provides immediate correctness signal while runtime dependency install is blocked.
+
+### Open questions
+- OPEN: Frontend-only integration requirements (view switching Parallel/Debate and DebateView state-machine transitions) currently lack a configured JS test harness in this repo. Should QA add frontend test infra (Vitest/Jest + RTL) in a follow-up task?
+- ASSUMED: Current backend-centric QA is the highest-priority executable path in this session given environment constraints.
+
+### Blockers
+- Cannot write to `/home/dalducin/orchestrator/workers/trialogue/PROGRESS.md` due sandbox permission denial; mirrored progress is maintained in `/home/dalducin/projects/trialogue/worker/PROGRESS.md`.
+- Cannot execute backend tests end-to-end because dependencies are unavailable locally and package installation is blocked by network restrictions.
+
+### Ordered next steps
+1. Enable dependency installation (or provide prebuilt environment) and run: `python3 -m unittest discover -s backend/tests -v`.
+2. If frontend integration QA is required now, add test harness and implement view-switch/state-machine tests.
+3. Reconcile documented rate-limit policy (demo/BYOK per-minute expectations) with implementation and adjust tests or code accordingly.
