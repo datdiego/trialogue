@@ -1074,3 +1074,30 @@ Next commit will include:
 1. Enable dependency installation (or provide prebuilt environment) and run: `python3 -m unittest discover -s backend/tests -v`.
 2. If frontend integration QA is required now, add test harness and implement view-switch/state-machine tests.
 3. Reconcile documented rate-limit policy (demo/BYOK per-minute expectations) with implementation and adjust tests or code accordingly.
+
+## Session Update: 2026-02-17 (Unit 4 - QA Execution Attempt: Dependency + Backend Test Run)
+
+### Files changed
+- /home/dalducin/projects/trialogue/worker/PROGRESS.md
+
+### Decisions made
+- Attempted dependency install using `pip install -r requirements.txt` in `backend/`, then retried with `backend/.venv/bin/pip`.
+  Rationale: satisfy the requested install step and ensure tests run with project-local interpreter.
+- Ran required unittest suites explicitly (`test_debate_endpoint.py`, `test_demo_system.py`, `test_integration_edge_cases.py`) with system `python3`.
+  Rationale: verify current QA status immediately even when install fails.
+- Probed for fallback options (existing venv packages and local pip cache wheels).
+  Rationale: unblock test execution without network access if offline artifacts existed.
+
+### Open questions
+- OPEN: Can this environment be granted package-index access (or a prebuilt backend virtualenv) so FastAPI dependencies can be installed?
+- ASSUMED: Once dependencies are present, the requested test suites should be rerun before any code-change decisions.
+
+### Blockers
+- `pip install -r requirements.txt` failed due DNS/network resolution errors reaching package index (`fastapi==0.115.0` unavailable from current environment).
+- Required suites cannot import `fastapi.testclient` and currently fail at module import before endpoint assertions execute.
+
+### Ordered next steps
+1. Restore dependency availability (networked pip or pre-provisioned wheelhouse/venv).
+2. Re-run the exact requested suites in `backend/tests/`.
+3. If assertions fail after import succeeds, patch backend code and/or tests.
+4. Re-run all three suites and record pass/fail counts in progress logs.
