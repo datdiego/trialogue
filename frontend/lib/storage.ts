@@ -12,7 +12,6 @@ const STORAGE_KEYS = {
 export interface ApiKeys {
   openai?: string;
   anthropic?: string;
-  google?: string;
   groq?: string;
 }
 

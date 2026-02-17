@@ -10,12 +10,11 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type Provider = 'openai' | 'anthropic' | 'google' | 'groq';
+type Provider = 'openai' | 'anthropic' | 'groq';
 
 const PROVIDERS: { id: Provider; name: string; placeholder: string }[] = [
   { id: 'openai', name: 'OpenAI', placeholder: 'sk-...' },
   { id: 'anthropic', name: 'Anthropic', placeholder: 'sk-ant-...' },
-  { id: 'google', name: 'Google (Gemini)', placeholder: 'AI...' },
   { id: 'groq', name: 'Groq', placeholder: 'gsk_...' },
 ];
 

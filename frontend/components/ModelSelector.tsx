@@ -44,7 +44,6 @@ export default function ModelSelector({ selectedModels, onChange }: ModelSelecto
     setUserKeys({
       openai: !!keys.openai,
       anthropic: !!keys.anthropic,
-      google: !!keys.google,
       groq: !!keys.groq,
     });
   }, []);
