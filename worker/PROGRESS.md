@@ -1023,3 +1023,27 @@ Next commit will include:
 2. Add Priority 3 integration tests that are backend-verifiable.
 3. Add Priority 4 edge-case tests (2 vs 3 models, timeout, concurrent sessions).
 4. Execute test suites once dependencies are available.
+
+## Session Update: 2026-02-17 (Unit 2 - Priority 2: Demo System Tests)
+
+### Files changed
+- /home/dalducin/projects/trialogue/backend/tests/test_demo_system.py
+
+### Decisions made
+- Added demo-system tests for `/api/demo-models` to verify Groq-only provider exposure and no key material in response payload.
+  Rationale: demo model discovery and key hygiene are core security/UX requirements.
+- Added chat endpoint tests for demo rate limiting (5 calls/session/IP), BYOK isolation from demo counters, and no-key fallback error behavior.
+  Rationale: ensures demo constraints do not leak into BYOK flow and fallback behavior remains explicit.
+
+### Open questions
+- OPEN: Should BYOK flow include any additional demo-flag assertions in streaming chunks for mixed-provider requests?
+- ASSUMED: Demo call-tracking keyed by client host (`testclient` in tests) is acceptable for unit-level validation.
+
+### Blockers
+- Cannot write to `/home/dalducin/orchestrator/workers/trialogue/PROGRESS.md` from this sandbox (`Permission denied`); mirrored updates continue in `/home/dalducin/projects/trialogue/worker/PROGRESS.md`.
+- Dependency installation remains blocked by restricted network, so runtime test execution is deferred.
+
+### Ordered next steps
+1. Add Priority 3 integration tests (parallel mode behavior and backend-integrated paths).
+2. Add Priority 4 edge-case tests (2/3 models, timeout path, concurrent session/IP isolation).
+3. Run `python3 -m unittest` suite when backend dependencies are available.
