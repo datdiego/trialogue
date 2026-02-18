@@ -1255,3 +1255,43 @@ The 1 remaining warning is a Pydantic V2 deprecation from litellm internals — 
 1. Run `.venv/bin/pytest backend/tests/ -v` on a non-restricted runner and capture actual pass count (target 15/15).
 2. If any failures occur outside this sandbox, fix regressions and rerun until green.
 3. Proceed with QA-REVIEW-3 local build/type/deployment-readiness checks in current repo.
+
+## Session Update: 2026-02-18 (Unit 11 - QA-REVIEW-3 Deployment Readiness)
+
+### Files changed
+- `/home/dalducin/projects/trialogue/worker/PROGRESS.md`
+
+### Decisions made
+- Executed required frontend build command `npm run build` exactly as specified.
+  Rationale: QA-REVIEW-3 requires direct verification of default build path.
+- Ran `npx tsc --noEmit` in `frontend/` as required and captured success.
+  Rationale: explicit type-check gate for deployment readiness.
+- Ran `npm run build -- --webpack` as a diagnostic after Turbopack failure.
+  Rationale: distinguish sandbox/runtime limitation from application-code build regressions.
+- Reviewed deployment configs: `frontend/vercel.json`, `backend/railway.toml`, `backend/Dockerfile`, and env examples.
+  Rationale: validate build/start/healthcheck paths and env var assumptions for Vercel + Railway.
+
+### Open questions
+- OPEN: In target CI/deployment, does Next 16 Turbopack `next build` run without sandbox restrictions? (local sandbox fails with `Operation not permitted` creating process/binding port).
+- ASSUMED: Vercel deploy is production-ready because webpack build passes and `vercel.json` uses standard Next config (`buildCommand: npm run build`, `outputDirectory: .next`).
+- ASSUMED: Railway backend config is production-ready with `uvicorn app.main:app`, `healthcheckPath=/health`, and Dockerfile non-root execution.
+
+### Blockers
+- `npm run build` (Turbopack default) fails in this sandbox with internal error tied to process/port restrictions:
+  - `creating new process`
+  - `binding to a port`
+  - `Operation not permitted (os error 1)`
+- Cannot write `/home/dalducin/orchestrator/workers/trialogue/PROGRESS.md`; mirrored in `/home/dalducin/projects/trialogue/worker/PROGRESS.md`.
+
+### Ordered next steps
+1. Re-run `cd frontend && npm run build` in non-restricted CI/runner to confirm Turbopack path is green.
+2. If Turbopack still fails outside sandbox, pin build to webpack (`next build --webpack`) or investigate Next 16 Turbopack config compatibility.
+3. Re-run `.venv/bin/pytest backend/tests/ -v` outside this sandbox to confirm 15/15 execution.
+4. After external reruns, sync final QA status into orchestrator `PROGRESS.md` from a writable environment.
+
+### Verification Evidence
+- `cd frontend && npm run build` -> failed in this sandbox with Turbopack internal error (`Operation not permitted`, process/port restriction).
+- `cd frontend && npx tsc --noEmit` -> passed (exit 0).
+- `cd frontend && npm run build -- --webpack` -> passed; static routes generated (`/`, `/_not-found`).
+- `backend/railway.toml` -> start command `uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}`, healthcheck `/health`.
+- `frontend/vercel.json` -> framework `nextjs`, build command `npm run build`, output `.next`.
