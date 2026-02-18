@@ -1228,3 +1228,30 @@ The 1 remaining warning is a Pydantic V2 deprecation from litellm internals — 
 1. Execute QA-REVIEW-2 backend test suite and record exact pass count against expected 15/15.
 2. Validate debate mode behavior (2-model and 3-model streaming) via backend tests/logical coverage.
 3. Run deployment-readiness checks (`npm run build`, `npx tsc --noEmit`) for QA-REVIEW-3 and checkpoint results.
+
+## Session Update: 2026-02-18 (Unit 10 - QA-REVIEW-2 Integration Test Pass)
+
+### Files changed
+- `/home/dalducin/projects/trialogue/worker/PROGRESS.md`
+
+### Decisions made
+- Ran `.venv/bin/pytest backend/tests/ --collect-only -q` to verify full suite composition and expected count.
+  Rationale: confirms scope and that all required QA cases (debate 2/3-model, demo, BYOK, rate limits) exist as 15 collected tests.
+- Attempted full execution via `.venv/bin/pytest backend/tests/ -v` and single-test execution with `timeout` wrappers.
+  Rationale: required by QA-REVIEW-2; execution behavior must be verified, not assumed.
+- Reproduced environment issue with a minimal script using `fastapi.testclient.TestClient(app).get('/health')` under timeout.
+  Rationale: isolates the hang from application test logic and attributes failure to test-runtime behavior in this sandbox.
+
+### Open questions
+- OPEN: Why `TestClient` requests hang in this runner while test collection succeeds (likely sandbox/runtime interaction with ASGI transport/event loop).
+- ASSUMED: In a non-restricted runner, this same suite should execute as previously reported (15/15).
+
+### Blockers
+- Full suite execution is blocked in this environment: `backend/tests/` hangs on first test (`test_debate_byok_skips_demo_limit_check`) and times out when wrapped.
+- Minimal repro also times out: `timeout 15 ../.venv/bin/python` script with `TestClient(app).get('/health')` exits `124` with no response output.
+- Cannot update `/home/dalducin/orchestrator/workers/trialogue/PROGRESS.md` due sandbox write denial; mirrored in `/home/dalducin/projects/trialogue/worker/PROGRESS.md`.
+
+### Ordered next steps
+1. Run `.venv/bin/pytest backend/tests/ -v` on a non-restricted runner and capture actual pass count (target 15/15).
+2. If any failures occur outside this sandbox, fix regressions and rerun until green.
+3. Proceed with QA-REVIEW-3 local build/type/deployment-readiness checks in current repo.
