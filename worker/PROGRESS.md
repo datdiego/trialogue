@@ -1202,3 +1202,29 @@ The 1 remaining warning is a Pydantic V2 deprecation from litellm internals — 
 
 ### Addendum
 - Blocker: direct write to `/home/dalducin/orchestrator/workers/trialogue/PROGRESS.md` failed with `Permission denied` in this sandbox. Progress is mirrored here in `/home/dalducin/projects/trialogue/worker/PROGRESS.md`.
+
+## Session Update: 2026-02-18 (Unit 9 - QA-REVIEW-1 Visual Regression & Theme Verification)
+
+### Files changed
+- `/home/dalducin/projects/trialogue/frontend/components/Markdown.tsx`
+- `/home/dalducin/projects/trialogue/worker/PROGRESS.md`
+
+### Decisions made
+- Removed all remaining `dark:` classes from `frontend/components/Markdown.tsx` and replaced legacy gray utility styles with semantic token-based inline styles.
+  Rationale: QA-REVIEW-1 explicitly requires dark-mode removal and semantic token compliance for the mexican-bright theme.
+- Kept token definitions with hex values only in theme files (`frontend/app/styles/themes/mexican-bright.css`) and enforced no component-level hardcoded hex.
+  Rationale: design rule allows concrete values in centralized theme tokens but forbids hardcoded color literals in components.
+- Verified favicon/OG wiring via `frontend/app/layout.tsx` metadata plus on-disk asset presence in `frontend/public/`.
+  Rationale: CLI environment cannot open browser-based OG validators, so static verification is the reliable in-session check.
+
+### Open questions
+- OPEN: External OG validator check (e.g., opengraph preview crawler) should still be run in a browser/network context.
+- ASSUMED: `metadata.icons` + `metadata.openGraph.images` paths are deployment-correct because assets exist and Next metadata configuration is valid.
+
+### Blockers
+- Cannot write `/home/dalducin/orchestrator/workers/trialogue/PROGRESS.md` from this sandbox (`Permission denied`); progress is mirrored in `/home/dalducin/projects/trialogue/worker/PROGRESS.md`.
+
+### Ordered next steps
+1. Execute QA-REVIEW-2 backend test suite and record exact pass count against expected 15/15.
+2. Validate debate mode behavior (2-model and 3-model streaming) via backend tests/logical coverage.
+3. Run deployment-readiness checks (`npm run build`, `npx tsc --noEmit`) for QA-REVIEW-3 and checkpoint results.

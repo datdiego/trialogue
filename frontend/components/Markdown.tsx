@@ -10,7 +10,7 @@ interface MarkdownProps {
 
 export default function Markdown({ content, className = '' }: MarkdownProps) {
   return (
-    <div className={`prose prose-sm dark:prose-invert max-w-none ${className}`}>
+    <div className={`prose prose-sm max-w-none ${className}`} style={{ color: 'var(--foreground)' }}>
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       skipHtml={true}
@@ -30,14 +30,26 @@ export default function Markdown({ content, className = '' }: MarkdownProps) {
         ),
         // Keep code blocks compact
         pre: ({ children }) => (
-          <pre className="bg-gray-800 dark:bg-gray-900 text-gray-100 rounded p-2 overflow-x-auto text-xs">
+          <pre
+            className="rounded p-2 overflow-x-auto text-xs"
+            style={{
+              background: 'color-mix(in srgb, var(--foreground) 8%, var(--background))',
+              color: 'var(--foreground)',
+            }}
+          >
             {children}
           </pre>
         ),
         code: ({ children, className }) => {
           const isInline = !className;
           return isInline ? (
-            <code className="bg-gray-200 dark:bg-gray-600 rounded px-1 py-0.5 text-xs">
+            <code
+              className="rounded px-1 py-0.5 text-xs"
+              style={{
+                background: 'color-mix(in srgb, var(--accent) 12%, var(--background))',
+                color: 'var(--foreground)',
+              }}
+            >
               {children}
             </code>
           ) : (
@@ -56,17 +68,23 @@ export default function Markdown({ content, className = '' }: MarkdownProps) {
         h3: ({ children }) => <h3 className="text-sm font-semibold my-1">{children}</h3>,
         // Tables
         table: ({ children }) => (
-          <table className="border-collapse border border-gray-300 dark:border-gray-600 text-xs my-2">
+          <table className="border-collapse border text-xs my-2" style={{ borderColor: 'var(--border)' }}>
             {children}
           </table>
         ),
         th: ({ children }) => (
-          <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 bg-gray-100 dark:bg-gray-700">
+          <th
+            className="border px-2 py-1"
+            style={{
+              borderColor: 'var(--border)',
+              background: 'var(--muted)',
+            }}
+          >
             {children}
           </th>
         ),
         td: ({ children }) => (
-          <td className="border border-gray-300 dark:border-gray-600 px-2 py-1">{children}</td>
+          <td className="border px-2 py-1" style={{ borderColor: 'var(--border)' }}>{children}</td>
         ),
       }}
     >
