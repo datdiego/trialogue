@@ -1,9 +1,9 @@
+@import "./styles/themes/mexican-bright.css";
+@import "./styles/theme.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import "./styles/themes/mexican-bright.css";
-@import "./styles/theme.css";
 
 @layer base {
   body {
