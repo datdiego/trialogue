@@ -41,6 +41,7 @@ export default function ChatInterface() {
   const [viewMode, setViewMode] = useState<ViewMode>('parallel');
   const [followUpTarget, setFollowUpTarget] = useState<string | null>(null); // Model to send follow-up to
   const [demoModels, setDemoModels] = useState<Record<string, boolean>>({}); // Track which models are using demo keys
+  const [showDebateBalloon, setShowDebateBalloon] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,6 +59,19 @@ export default function ChatInterface() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [trialogueMessages, currentResponses]);
+
+  const handleSwitchToDebate = () => {
+    setViewMode('debate');
+    const seen = localStorage.getItem('trialogue-debate-intro-seen');
+    if (!seen) {
+      setShowDebateBalloon(true);
+    }
+  };
+
+  const dismissDebateBalloon = () => {
+    localStorage.setItem('trialogue-debate-intro-seen', '1');
+    setShowDebateBalloon(false);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || selectedModels.length === 0 || isStreaming) return;
@@ -198,7 +212,8 @@ export default function ChatInterface() {
       <header className="border-b px-6 py-4" style={{ background: 'var(--background)', borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
+            <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
+              <img src="/logo.png" alt="Trialogue" className="w-8 h-8 object-contain" />
               Trialogue
             </h1>
             <div className="flex items-center gap-2">
@@ -282,33 +297,94 @@ export default function ChatInterface() {
 
           {/* View Mode Selector */}
           {selectedModels.length > 0 && (
-            <div className="flex gap-1 rounded-lg p-1" style={{ background: 'var(--muted)' }}>
-              <button
-                onClick={() => setViewMode('parallel')}
-                className="px-3 py-1.5 rounded text-sm font-medium transition-colors"
-                style={
-                  viewMode === 'parallel'
-                    ? { background: 'var(--background)', color: 'var(--foreground)', boxShadow: '0 1px 3px var(--border)' }
-                    : { color: 'var(--muted-text)' }
-                }
-                title="Parallel chat view"
-              >
-                <MessageSquare className="w-4 h-4 inline mr-1" />
-                Parallel
-              </button>
-              <button
-                onClick={() => setViewMode('debate')}
-                className="px-3 py-1.5 rounded text-sm font-medium transition-colors"
-                style={
-                  viewMode === 'debate'
-                    ? { background: 'var(--background)', color: 'var(--foreground)', boxShadow: '0 1px 3px var(--border)' }
-                    : { color: 'var(--muted-text)' }
-                }
-                title="Multi-round debate mode"
-              >
-                <Users className="w-4 h-4 inline mr-1" />
-                Debate
-              </button>
+            <div className="relative">
+              <div className="flex gap-1 rounded-lg p-1" style={{ background: 'var(--muted)' }}>
+                <button
+                  onClick={() => setViewMode('parallel')}
+                  className="px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                  style={
+                    viewMode === 'parallel'
+                      ? { background: 'var(--background)', color: 'var(--foreground)', boxShadow: '0 1px 3px var(--border)' }
+                      : { color: 'var(--muted-text)' }
+                  }
+                  title="Parallel chat view"
+                >
+                  <MessageSquare className="w-4 h-4 inline mr-1" />
+                  Parallel
+                </button>
+                <button
+                  onClick={handleSwitchToDebate}
+                  className="px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                  style={
+                    viewMode === 'debate'
+                      ? { background: 'var(--background)', color: 'var(--foreground)', boxShadow: '0 1px 3px var(--border)' }
+                      : { color: 'var(--muted-text)' }
+                  }
+                  title="Multi-round debate mode"
+                >
+                  <Users className="w-4 h-4 inline mr-1" />
+                  Debate
+                </button>
+              </div>
+
+              {/* Debate Intro Balloon */}
+              {showDebateBalloon && (
+                <div
+                  className="absolute left-0 z-50"
+                  style={{
+                    top: 'calc(100% + 12px)',
+                    animation: 'debateBalloonIn 0.2s ease-out',
+                  }}
+                >
+                  {/* Speech bubble tail */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '-8px',
+                      left: '24px',
+                      width: 0,
+                      height: 0,
+                      borderLeft: '8px solid transparent',
+                      borderRight: '8px solid transparent',
+                      borderBottom: '8px solid var(--accent)',
+                    }}
+                  />
+                  <div
+                    className="rounded-xl p-4 shadow-lg"
+                    style={{
+                      background: 'var(--background)',
+                      border: '2px solid var(--accent)',
+                      minWidth: '280px',
+                      maxWidth: '340px',
+                    }}
+                  >
+                    <p className="text-sm font-semibold mb-2" style={{ color: 'var(--accent)' }}>
+                      How Debate Mode works
+                    </p>
+                    <ol className="text-sm space-y-1.5" style={{ color: 'var(--foreground)' }}>
+                      <li className="flex gap-2">
+                        <span className="font-bold shrink-0" style={{ color: 'var(--accent)' }}>1.</span>
+                        <span><strong>Independent Answers</strong> — each model responds on its own</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="font-bold shrink-0" style={{ color: 'var(--accent)' }}>2.</span>
+                        <span><strong>Review &amp; Critique</strong> — models evaluate each other&apos;s responses</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="font-bold shrink-0" style={{ color: 'var(--accent)' }}>3.</span>
+                        <span><strong>Consensus</strong> — models work toward a unified answer</span>
+                      </li>
+                    </ol>
+                    <button
+                      onClick={dismissDebateBalloon}
+                      className="mt-3 w-full py-1.5 rounded-lg text-sm font-medium transition-colors"
+                      style={{ background: 'var(--accent)', color: 'white' }}
+                    >
+                      Got it
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
