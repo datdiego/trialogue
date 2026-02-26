@@ -9,9 +9,13 @@ export const metadata: Metadata = {
   title: "Trialogue - Multi-LLM Chat Interface",
   description: "Chat with up to three AI models simultaneously. Compare responses, run multi-round debates, and find the best answer — bring your own keys or use demo mode.",
   icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
   openGraph: {
     title: "Trialogue - Multi-LLM Chat Interface",
@@ -21,8 +25,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og-image.png",
-        width: 1200,
-        height: 630,
+        width: 1408,
+        height: 768,
         alt: "Trialogue - Multi-LLM Chat Interface",
       },
     ],
