@@ -6,6 +6,7 @@ import "./globals.css";
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://trialogue-dun.vercel.app"),
   title: "Trialogue - Multi-LLM Chat Interface",
   description: "Chat with up to three AI models simultaneously. Compare responses, run multi-round debates, and find the best answer — bring your own keys or use demo mode.",
   icons: {
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Trialogue - Multi-LLM Chat Interface",
     description: "Chat with up to three AI models simultaneously. Compare responses, run multi-round debates, and find the best answer.",
-    url: "https://trialogue.vercel.app",
+    url: "https://trialogue-dun.vercel.app",
     siteName: "Trialogue",
     images: [
       {
